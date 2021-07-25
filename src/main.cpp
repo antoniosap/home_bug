@@ -1,5 +1,15 @@
-
+/*! @mainpage
 //-------------------------------------------------------------------------------------------------------
+*/
+#include <Arduino.h>
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
+#include <stdint.h>
+
+//-- DEBUG ---------------------------------------------------------------------
+#define UART_ECHO           (0)
+#define UART_BAUDRATE       (115200)
+
 /*
   Project Name: TM1638plus (arduino library)
   File: TM1638plus_HELLOWORLD_Model2.ino
@@ -8,16 +18,14 @@
   Created Feb 2020
   URL: https://github.com/gavinlyonsrepo/TM1638plus
 */
-
-#include <Arduino.h>
 #include <TM1638plus_Model2.h>
 
 // GPIO I/O pins on the Arduino connected to strobe, clock, data, pick on any I/O pin you want.
-#define  STROBE_TM 4  // strobe = GPIO connected to strobe line of module
-#define  CLOCK_TM 6  // clock = GPIO connected to clock line of module
-#define  DIO_TM 7 // data = GPIO connected to data line of module
-bool swap_nibbles = false; //Default is false if left out, see issues section in readme at URL
-bool high_freq = false; //default false, If using a high freq CPU > ~100 MHZ set to true. 
+#define STROBE_TM       3   // strobe = GPIO connected to strobe line of module
+#define CLOCK_TM        4   // clock = GPIO connected to clock line of module
+#define DIO_TM          8   // data = GPIO connected to data line of module
+bool swap_nibbles = false;  // Default is false if left out, see issues section in readme at URL
+bool high_freq = false;     // default false, If using a high freq CPU > ~100 MHZ set to true. 
 
 // Constructor object Init the module
 TM1638plus_Model2 tm(STROBE_TM, CLOCK_TM , DIO_TM, swap_nibbles, high_freq);
@@ -72,7 +80,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 
 //-------------------------------------------------------------------------------------------------------
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(UART_BAUDRATE);
 
   while (!Serial) { // needed to keep leonardo/micro from starting too fast!
     delay(10);
