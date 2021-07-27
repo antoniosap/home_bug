@@ -11,7 +11,7 @@ CPU: D1 mini ESP 8266 MOD compatibile WEMOS
 keyboard 1 / display: TM1638
 pin 1: 3V3
 pin 2: gnd
-pin 3: STB - D3
+pin 3: STB - D5
 pin 4: CLK - D4
 pin 5: DIO - D8
 
@@ -21,6 +21,9 @@ pin 2: IRQ - n/c
 pin 3: SCL - D1
 pin 4: SDA - D2
 pin 5: gnd
+
+CPU: lasciare libero D3 che serve per il flash programming
+va disconnesso D3 dal carico se si riprogramma via USB
 
 alimentazione USB
 

@@ -21,7 +21,7 @@
 #include <TM1638plus_Model2.h>
 
 // GPIO I/O pins on the Arduino connected to strobe, clock, data, pick on any I/O pin you want.
-#define STROBE_TM       3   // strobe = GPIO connected to strobe line of module
+#define STROBE_TM       5   // strobe = GPIO connected to strobe line of module
 #define CLOCK_TM        4   // clock = GPIO connected to clock line of module
 #define DIO_TM          8   // data = GPIO connected to data line of module
 bool swap_nibbles = false;  // Default is false if left out, see issues section in readme at URL
@@ -64,6 +64,9 @@ uint16_t lasttouched = 0;
 uint16_t currtouched = 0;
 
 //-------------------------------------------------------------------------------------------------------
+uint8_t state = 0;
+
+//-------------------------------------------------------------------------------------------------------
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
 
 //needed for library
@@ -80,30 +83,34 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 
 //-------------------------------------------------------------------------------------------------------
 void setup() {
-  Serial.begin(UART_BAUDRATE);
+  ESP.wdtDisable();
 
-  while (!Serial) { // needed to keep leonardo/micro from starting too fast!
-    delay(10);
-  }
+  Serial.begin(UART_BAUDRATE);
   
-  Serial.println("Adafruit MPR121 Capacitive Touch sensor test"); 
+  // needed to keep leonardo/micro from starting too fast!
+  while (!Serial) { delay(10); }
   
   // Default address is 0x5A, if tied to 3.3V its 0x5B
   // If tied to SDA its 0x5C and if SCL then 0x5D
   if (!cap.begin(0x5A)) {
-    Serial.println("MPR121 not found, check wiring?");
+    Serial.println("E:MPR121 not found");
     while (1);
   }
-  Serial.println("MPR121 found!");
+  Serial.println("I:MPR121 found!");
+  ESP.wdtEnable(1000);
 
- tm.displayBegin();
+  tm.displayBegin();
 }
 
 //-------------------------------------------------------------------------------------------------------
 void loop() {
-	tm.DisplayStr("helowrld", 0);  // Display "helowrld" in seven segments with zero decimal points set.
-	delay(5000);
+  if (state == 0) {
+  tm.DisplayStr("home bug", 0);
+  tm.DisplayStr("26-07-21", 0);
+  tm.DisplayStr("ok", 0);    
+  } else if (state == 1) {
 
+  }
   // Get the currently touched pads
   currtouched = cap.touched();
   
@@ -116,6 +123,7 @@ void loop() {
     if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
       Serial.print(i); Serial.println(" released");
     }
+    ESP.wdtFeed();
   }
 
   // reset our state
@@ -125,7 +133,8 @@ void loop() {
   return;
   
   // debugging info, what
-  Serial.print("\t\t\t\t\t\t\t\t\t\t\t\t\t 0x"); Serial.println(cap.touched(), HEX);
+  Serial.print("0x"); 
+  Serial.println(cap.touched(), HEX);
   Serial.print("Filt: ");
   for (uint8_t i=0; i<12; i++) {
     Serial.print(cap.filteredData(i)); Serial.print("\t");
@@ -139,4 +148,5 @@ void loop() {
   
   // put a delay so it isn't overwhelming
   delay(100);
+  ESP.wdtFeed();
 }
