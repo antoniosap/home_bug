@@ -12,8 +12,8 @@ keyboard 1 / display: TM1638
 pin 1: 3V3
 pin 2: gnd
 pin 3: STB - D5
-pin 4: CLK - D4
-pin 5: DIO - D8
+pin 4: CLK - D6
+pin 5: DIO - D7
 
 keyboard 2: MPR 121
 pin 1: 3V3
@@ -22,8 +22,11 @@ pin 3: SCL - D1
 pin 4: SDA - D2
 pin 5: gnd
 
-CPU: lasciare libero D3 che serve per il flash programming
-va disconnesso D3 dal carico se si riprogramma via USB
+CPU:
+attenzione: lasciare libero D3 che serve per il flash programming
+attenzione: va disconnesso D3 dal carico se si riprogramma via USB
+attenzione: il Wemos D1 mini a il D8 collegato a GND con un 10k
+attenzione: il Wemos D1 mini a il D3 / D4 collegato a 3V3 con un 10k
 
 alimentazione USB
 
