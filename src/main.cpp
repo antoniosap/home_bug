@@ -7,6 +7,7 @@
 #define UART_ECHO           (0)
 #define UART_BAUDRATE       (115200)
 
+//--- TM 1638 leds & keys -------------------------------------------------------------------------------
 /*
   Project Name: TM1638plus (arduino library)
   File: TM1638plus_HELLOWORLD_TEST_Model1.ino
@@ -29,7 +30,7 @@
 // Constructor object Init the module
 TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, false);
 
-//-------------------------------------------------------------------------------------------------------
+//--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
 This is a library for the MPR121 12-channel Capacitive touch sensor
 
@@ -63,7 +64,6 @@ uint16_t lasttouched = 0;
 uint16_t currtouched = 0;
 
 //-------------------------------------------------------------------------------------------------------
-uint8_t state = 0;
 
 //-------------------------------------------------------------------------------------------------------
 // #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -79,6 +79,28 @@ uint8_t state = 0;
 //   //if you used auto generated SSID, print it
 //   Serial.println(myWiFiManager->getConfigPortalSSID());
 // }
+
+//-------------------------------------------------------------------------------------------------------
+#include <TaskScheduler.h>
+
+void welcome();
+Task welcomeTask(3000, TASK_FOREVER, &welcome);
+Scheduler runner;
+
+uint8_t welcomeState = 0;
+
+void welcome() {
+  if (welcomeState == 0) {
+    welcomeState++;
+    tm.displayText("HOME BUG");
+  } else if (welcomeState == 1) {
+    tm.displayText(" SALVE  ");
+    welcomeState++;
+  } else if (welcomeState == 2) {
+    tm.displayText("20210627");
+    welcomeState = 0;
+  }
+};
 
 //-------------------------------------------------------------------------------------------------------
 void setup() {
@@ -99,29 +121,17 @@ void setup() {
   ESP.wdtEnable(1000);
 
   tm.displayBegin();
+  
+  runner.init();
+  runner.addTask(welcomeTask);
+  welcomeTask.enable();
 }
 
 //-------------------------------------------------------------------------------------------------------
 void loop() {
   ESP.wdtFeed();
+  runner.execute();
 
-  tm.displayText("home bug");
-  delay(500);
-  tm.displayText("26-07-21");
-  delay(500);
-  tm.displayText("ok");
-  delay(500);  
-
-  // if (state == 0) {
-  //   tm.displayText("home bug");
-  //   delay(500);
-  //   tm.displayText("26-07-21");
-  //   delay(500);
-  //   tm.displayText("ok");
-  //   delay(500);    
-  // } else if (state == 1) {
-
-  // }
   // // Get the currently touched pads
   // currtouched = cap.touched();
   
