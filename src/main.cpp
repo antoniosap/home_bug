@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 //-- DEBUG ---------------------------------------------------------------------
+#define DEBUG_KEYPAD        false
 #define UART_ECHO           (0)
 #define UART_BAUDRATE       (115200)
 
@@ -29,6 +30,19 @@
 
 // Constructor object Init the module
 TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, false);
+char display[TM_DISPLAY_SIZE + 1];
+
+#define FUNCT_BTN_NULL  0
+#define FUNCT_BTN_0     1
+#define FUNCT_BTN_1     2
+#define FUNCT_BTN_2     4
+#define FUNCT_BTN_3     8
+#define FUNCT_BTN_4     16
+#define FUNCT_BTN_5     32
+#define FUNCT_BTN_6     64
+#define FUNCT_BTN_7     128
+uint8_t functionBtn = FUNCT_BTN_NULL;
+
 
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
@@ -84,10 +98,17 @@ uint16_t currtouched = 0;
 #include <TaskScheduler.h>
 
 void welcome();
-Task welcomeTask(3000, TASK_FOREVER, &welcome);
+Task welcomeTask(3000, 3, &welcome);
+void wallClock();
+void wallClockEnable();
+Task clockTask(1000, TASK_FOREVER, &wallClock);
+void calc();
+void calcEnable();
+Task calcTask(100, TASK_FOREVER, &calc);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
+bool welcomeFirst = true;
 
 void welcome() {
   if (welcomeState == 0) {
@@ -96,11 +117,68 @@ void welcome() {
   } else if (welcomeState == 1) {
     tm.displayText(" SALVE  ");
     welcomeState++;
+    if (welcomeFirst) {
+      welcomeFirst = false;
+    } else {
+      welcomeState = 0;
+    }
   } else if (welcomeState == 2) {
     tm.displayText("20210627");
     welcomeState = 0;
   }
+  if (welcomeTask.isLastIteration()) {
+      welcomeTask.disable();
+      wallClockEnable();
+  }
 };
+
+void displayFloat(double value) {
+  snprintf(display, TM_DISPLAY_SIZE + 1, "%f", value);
+  tm.displayText(display);
+}
+
+uint8_t hour = 0;
+uint8_t minutes = 0;
+uint8_t seconds = 0;
+bool clockIndicator = false;
+
+
+void wallClock() {
+  snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
+  tm.displayText(display);
+
+  clockIndicator = !clockIndicator;
+  if (++seconds > 59) {
+    seconds = 0;
+    if (++minutes > 59) {
+      minutes = 0;
+      if (++hour > 24) {
+        hour = 0;
+      }
+    }
+  }
+};
+
+void wallClockEnable() {
+  clockTask.enable();
+  tm.setLED(2, 1);
+  tm.displayText("        ");
+}
+
+void wallClockDisable() {
+  clockTask.disable();
+  tm.setLED(2, 0);
+}
+
+void calc() {
+
+}
+
+void calcEnable() {
+  calcTask.enable();
+  tm.setLED(2, 1);
+  displayFloat(0);
+}
 
 //-------------------------------------------------------------------------------------------------------
 void setup() {
@@ -118,12 +196,14 @@ void setup() {
     while (1);
   }
   Serial.println("I:MPR121 found!");
+  cap.setThresholds(70, 100);
   ESP.wdtEnable(1000);
 
   tm.displayBegin();
   
   runner.init();
   runner.addTask(welcomeTask);
+  runner.addTask(clockTask);
   welcomeTask.enable();
 }
 
@@ -132,39 +212,48 @@ void loop() {
   ESP.wdtFeed();
   runner.execute();
 
-  // // Get the currently touched pads
-  // currtouched = cap.touched();
+  // Get the currently touched pads
+  currtouched = cap.touched();
+  for (uint8_t i=0; i<12; i++) {
+    // it if *is* touched and *wasnt* touched before, alert!
+    if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) ) {
+      Serial.print(i); Serial.println(" touched");
+    }
+    // if it *was* touched and now *isnt*, alert!
+    if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
+      Serial.print(i); Serial.println(" released");
+    }
+    ESP.wdtFeed();
+  }
+  // reset our state
+  lasttouched = currtouched;
   
-  // for (uint8_t i=0; i<12; i++) {
-  //   // it if *is* touched and *wasnt* touched before, alert!
-  //   if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) ) {
-  //     Serial.print(i); Serial.println(" touched");
-  //   }
-  //   // if it *was* touched and now *isnt*, alert!
-  //   if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
-  //     Serial.print(i); Serial.println(" released");
-  //   }
-  //   ESP.wdtFeed();
-  // }
+  if (DEBUG_KEYPAD) {
+    // debugging info, what
+    Serial.print("0x"); 
+    Serial.println(cap.touched(), HEX);
+    Serial.print("Filt: ");
+    for (uint8_t i=0; i<12; i++) {
+      Serial.print(cap.filteredData(i)); Serial.print("\t");
+    }
+    Serial.println();
+    Serial.print("Base: ");
+    for (uint8_t i=0; i<12; i++) {
+      Serial.print(cap.baselineData(i)); Serial.print("\t");
+    }
+    Serial.println();
+    
+    // put a delay so it isn't overwhelming
+    ESP.wdtFeed();
+  }
 
-  // // reset our state
-  // lasttouched = currtouched;
-  
-  // // debugging info, what
-  // Serial.print("0x"); 
-  // Serial.println(cap.touched(), HEX);
-  // Serial.print("Filt: ");
-  // for (uint8_t i=0; i<12; i++) {
-  //   Serial.print(cap.filteredData(i)); Serial.print("\t");
-  // }
-  // Serial.println();
-  // Serial.print("Base: ");
-  // for (uint8_t i=0; i<12; i++) {
-  //   Serial.print(cap.baselineData(i)); Serial.print("\t");
-  // }
-  // Serial.println();
-  
-  // // put a delay so it isn't overwhelming
-  // delay(100);
-  // ESP.wdtFeed();
+  functionBtn = tm.readButtons();
+  if (functionBtn != FUNCT_BTN_NULL) {
+    Serial.print("KEY:");
+    Serial.println(functionBtn, 2);
+
+    if (functionBtn == FUNCT_BTN_0) {
+
+    }
+  }
 }

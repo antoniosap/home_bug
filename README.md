@@ -33,26 +33,26 @@ alimentazione USB
 ## input / output functions
 
 FUNCTIONS LEDS:
-LED 1->CALC             |
-LED 2->NETWORK          |
+LED 0->CALC             |
+LED 1->NETWORK          |
+LED 2->WALL CLOCK       |
 LED 3                   |
 LED 4                   |
 LED 5                   |
 LED 6                   |
 LED 7                   |
-LED 8                   |
 
 FUNCTIONS KEYS:
 MENU BASE               | RPN CALC MODE          |
 ________________________|________________________|
-S-KEY 1->CALC           |
-S-KEY 2->NETWORK        |
-S-KEY 3                 | ADD +
-S-KEY 4                 | SUB -
-S-KEY 5                 | MUL *
-S-KEY 6                 | DIV /
-S-KEY 7                 |
-S-KEY 8                 | ENTER =
+S-KEY 0->CALC           |
+S-KEY 1->NETWORK        |
+S-KEY 2                 | ADD +
+S-KEY 3                 | SUB -
+S-KEY 4                 | MUL *
+S-KEY 5                 | DIV /
+S-KEY 6                 |
+S-KEY 7                 | ENTER =
 
 7 SEGMENT DISPLAY
 12345678
