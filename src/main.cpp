@@ -2,6 +2,7 @@
 //-------------------------------------------------------------------------------------------------------
 */
 #include <Arduino.h>
+#include <string>
 
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD        false
@@ -141,11 +142,13 @@ uint8_t hour = 0;
 uint8_t minutes = 0;
 uint8_t seconds = 0;
 bool clockIndicator = false;
-
+bool clockDisplay = false;
 
 void wallClock() {
-  snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
-  tm.displayText(display);
+  if (clockDisplay) {
+    snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
+    tm.displayText(display);
+  }
 
   clockIndicator = !clockIndicator;
   if (++seconds > 59) {
@@ -160,18 +163,62 @@ void wallClock() {
 };
 
 void wallClockEnable() {
-  clockTask.enable();
+  clockDisplay = true;
   tm.setLED(2, 1);
   tm.displayText("        ");
 }
 
 void wallClockDisable() {
-  clockTask.disable();
+  clockDisplay = false;
   tm.setLED(2, 0);
 }
 
-void calc() {
+// stack registers
+double t = 0;
+double z = 0;
+double y = 0;
+double x = 0; // on display
+char op = ' ';
+String xb = "";
 
+void calc() {
+  switch (op) {
+    case ' ':
+      break;
+    case '+':
+      x += y; y = z; z = t; t = 0;
+      break;
+    case '-':
+      x -= y; y = z; z = t; t = 0;
+      break;
+    case '*':
+      x *= y; y = z; z = t; t = 0;
+      break;
+    case '/':
+      x /= y; y = z; z = t; t = 0;
+      break;
+    case '=':
+      t = z; z = y; y = x;
+      break;      
+  }
+  op = ' ';
+
+// KEYPAD MAPPINGS:
+//  K03->7          K07->8           K11->9
+//  K02->4          K06->5           K10->6
+//  K01->1          K05->2           K09->3
+//  K00->0          K04->.           K08->del
+  int8_t key = keypadBtnTouched();
+  int8_t keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '9', '6', '9'};
+  switch (keymap[key]) {
+    case '.':
+      break;
+    case 'D':
+      break;
+    default:
+      xb = xb + keymap[key];
+      break;     
+  }    
 }
 
 void calcEnable() {
@@ -180,54 +227,26 @@ void calcEnable() {
   displayFloat(0);
 }
 
-//-------------------------------------------------------------------------------------------------------
-void setup() {
-  ESP.wdtDisable();
-
-  Serial.begin(UART_BAUDRATE);
-  
-  // needed to keep leonardo/micro from starting too fast!
-  while (!Serial) { delay(10); }
-  
-  // Default address is 0x5A, if tied to 3.3V its 0x5B
-  // If tied to SDA its 0x5C and if SCL then 0x5D
-  if (!cap.begin(0x5A)) {
-    Serial.println("E:MPR121 not found");
-    while (1);
-  }
-  Serial.println("I:MPR121 found!");
-  cap.setThresholds(70, 100);
-  ESP.wdtEnable(1000);
-
-  tm.displayBegin();
-  
-  runner.init();
-  runner.addTask(welcomeTask);
-  runner.addTask(clockTask);
-  welcomeTask.enable();
+void calcDisable() {
+  calcTask.disable();
+  tm.setLED(2, 0);
 }
 
-//-------------------------------------------------------------------------------------------------------
-void loop() {
-  ESP.wdtFeed();
-  runner.execute();
-
+int8_t keypadBtnTouched() {
+  int8_t btn = -1;
   // Get the currently touched pads
   currtouched = cap.touched();
   for (uint8_t i=0; i<12; i++) {
     // it if *is* touched and *wasnt* touched before, alert!
     if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) ) {
-      Serial.print(i); Serial.println(" touched");
-    }
-    // if it *was* touched and now *isnt*, alert!
-    if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
-      Serial.print(i); Serial.println(" released");
+      btn = i;
+      break;
     }
     ESP.wdtFeed();
   }
   // reset our state
   lasttouched = currtouched;
-  
+
   if (DEBUG_KEYPAD) {
     // debugging info, what
     Serial.print("0x"); 
@@ -247,13 +266,83 @@ void loop() {
     ESP.wdtFeed();
   }
 
+  return btn;
+}
+
+//-------------------------------------------------------------------------------------------------------
+void setup() {
+  ESP.wdtDisable();
+
+  Serial.begin(UART_BAUDRATE);
+  // needed to keep leonardo/micro from starting too fast!
+  while (!Serial) { delay(10); }
+  
+  // Default address is 0x5A, if tied to 3.3V its 0x5B
+  // If tied to SDA its 0x5C and if SCL then 0x5D
+  if (!cap.begin(0x5A)) {
+    Serial.println("E:MPR121 not found");
+    while (1);
+  }
+  Serial.println("I:MPR121 found!");
+  cap.setThresholds(70, 100);
+  ESP.wdtEnable(1000);
+
+  tm.displayBegin();
+  
+  runner.init();
+  runner.addTask(welcomeTask);
+  runner.addTask(clockTask);
+  welcomeTask.enable();
+  clockTask.enable();
+}
+
+//-------------------------------------------------------------------------------------------------------
+void loop() {
+  ESP.wdtFeed();
+  runner.execute();
+  
   functionBtn = tm.readButtons();
   if (functionBtn != FUNCT_BTN_NULL) {
     Serial.print("KEY:");
     Serial.println(functionBtn, 2);
 
-    if (functionBtn == FUNCT_BTN_0) {
+    switch (functionBtn) {
+      case FUNCT_BTN_0:
+        wallClockDisable();
+        calcEnable();
+        break;
+      case FUNCT_BTN_1:
 
+        break;
+      case FUNCT_BTN_2:
+        calcDisable();
+        wallClockEnable();
+        break;
+      case FUNCT_BTN_3:
+        if (calcTask.isEnabled()) {
+          op = '+';
+        }
+        break;
+      case FUNCT_BTN_4:
+        if (calcTask.isEnabled()) {
+          op = '-';
+        }
+        break;
+      case FUNCT_BTN_5:
+        if (calcTask.isEnabled()) {
+          op = '*';
+        }
+        break;
+      case FUNCT_BTN_6:
+        if (calcTask.isEnabled()) {
+          op = '/';
+        }
+        break;
+      case FUNCT_BTN_7:
+        if (calcTask.isEnabled()) {
+          op = '='; // ENTER
+        }
+        break;
     }
   }
 }

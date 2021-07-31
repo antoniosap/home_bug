@@ -47,18 +47,18 @@ MENU BASE               | RPN CALC MODE          |
 ________________________|________________________|
 S-KEY 0->CALC           |
 S-KEY 1->NETWORK        |
-S-KEY 2                 | ADD +
-S-KEY 3                 | SUB -
-S-KEY 4                 | MUL *
-S-KEY 5                 | DIV /
-S-KEY 6                 |
+S-KEY 2                 |
+S-KEY 3                 | ADD +
+S-KEY 4                 | SUB -
+S-KEY 5                 | MUL *
+S-KEY 6                 | DIV /
 S-KEY 7                 | ENTER =
 
 7 SEGMENT DISPLAY
 12345678
 
 KEYPAD MAPPINGS:
- K03->7          K02->8           K11->9
+ K03->7          K07->8           K11->9
  K02->4          K06->5           K10->6
  K01->1          K05->2           K09->3
  K00->0          K04->.           K08->del
