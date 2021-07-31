@@ -44,6 +44,7 @@ char display[TM_DISPLAY_SIZE + 1];
 #define FUNCT_BTN_7     128
 uint8_t functionBtn = FUNCT_BTN_NULL;
 
+#define FUNCT_LED(x)    (x)
 
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
@@ -99,12 +100,13 @@ uint16_t currtouched = 0;
 #include <TaskScheduler.h>
 
 void welcome();
-Task welcomeTask(3000, 3, &welcome);
+Task welcomeTask(3000, 4, &welcome);
 void wallClock();
 void wallClockEnable();
 Task clockTask(1000, TASK_FOREVER, &wallClock);
 void calc();
 void calcEnable();
+int8_t keypadBtnTouched();
 Task calcTask(100, TASK_FOREVER, &calc);
 Scheduler runner;
 
@@ -164,13 +166,13 @@ void wallClock() {
 
 void wallClockEnable() {
   clockDisplay = true;
-  tm.setLED(2, 1);
+  tm.setLED(FUNCT_LED(2), 1);
   tm.displayText("        ");
 }
 
 void wallClockDisable() {
   clockDisplay = false;
-  tm.setLED(2, 0);
+  tm.setLED(FUNCT_LED(2), 0);
 }
 
 // stack registers
@@ -180,6 +182,13 @@ double y = 0;
 double x = 0; // on display
 char op = ' ';
 String xb = "";
+
+void displayXB() {
+  String buf = "        " + xb;
+  buf = buf.substring(buf.length() - TM_DISPLAY_SIZE + 1);
+  buf.toCharArray(display, TM_DISPLAY_SIZE + 1);
+  tm.displayText(display);
+}
 
 void calc() {
   switch (op) {
@@ -209,27 +218,34 @@ void calc() {
 //  K01->1          K05->2           K09->3
 //  K00->0          K04->.           K08->del
   int8_t key = keypadBtnTouched();
-  int8_t keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '9', '6', '9'};
-  switch (keymap[key]) {
-    case '.':
-      break;
-    case 'D':
-      break;
-    default:
-      xb = xb + keymap[key];
-      break;     
-  }    
+  if (key >= 0) {
+    char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
+    switch (keymap[key]) {
+      case 'D':
+        if (xb.length() > 0) {
+          xb.remove(xb.length() - 1, 1);
+        }
+        break;
+      default:
+        if (xb == "0.") xb = "";
+        xb = xb + keymap[key];
+        break;     
+    }
+    Serial.println("xb:" + xb);
+    displayXB();
+  }
 }
 
 void calcEnable() {
   calcTask.enable();
-  tm.setLED(2, 1);
-  displayFloat(0);
+  tm.setLED(FUNCT_LED(0), 1);
+  xb = "0.";
+  displayXB();
 }
 
 void calcDisable() {
   calcTask.disable();
-  tm.setLED(2, 0);
+  tm.setLED(FUNCT_LED(0), 0);
 }
 
 int8_t keypadBtnTouched() {
@@ -292,6 +308,7 @@ void setup() {
   runner.init();
   runner.addTask(welcomeTask);
   runner.addTask(clockTask);
+  runner.addTask(calcTask);
   welcomeTask.enable();
   clockTask.enable();
 }
@@ -303,9 +320,6 @@ void loop() {
   
   functionBtn = tm.readButtons();
   if (functionBtn != FUNCT_BTN_NULL) {
-    Serial.print("KEY:");
-    Serial.println(functionBtn, 2);
-
     switch (functionBtn) {
       case FUNCT_BTN_0:
         wallClockDisable();
