@@ -3,6 +3,7 @@
 */
 #include <Arduino.h>
 #include <string>
+#include <strtod.cpp>
 
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD        false
@@ -135,9 +136,13 @@ void welcome() {
   }
 };
 
-void displayFloat(double value) {
-  snprintf(display, TM_DISPLAY_SIZE + 1, "%f", value);
-  tm.displayText(display);
+void displayFloat(String buf) {
+  if (buf.length() > TM_DISPLAY_SIZE) {
+    tm.displayText("  OVER  ");
+  } else {
+    buf.toCharArray(display, TM_DISPLAY_SIZE);
+    tm.displayText(display);
+  }
 }
 
 uint8_t hour = 0;
@@ -181,14 +186,13 @@ double z = 0;
 double y = 0;
 double x = 0; // on display
 char op = ' ';
-String xb = "";
 
-void displayXB() {
-  String buf = "        " + xb;
-  buf = buf.substring(buf.length() - TM_DISPLAY_SIZE + 1);
-  buf.toCharArray(display, TM_DISPLAY_SIZE + 1);
-  tm.displayText(display);
-}
+// void displayXB() {
+//   String buf = "        " + xb;
+//   buf = buf.substring(buf.length() - TM_DISPLAY_SIZE + 1);
+//   buf.toCharArray(display, TM_DISPLAY_SIZE + 1);
+//   tm.displayText(display);
+// }
 
 void calc() {
   switch (op) {
@@ -219,28 +223,26 @@ void calc() {
 //  K00->0          K04->.           K08->del
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
+    String buf = String(x, 16);
     char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     switch (keymap[key]) {
       case 'D':
-        if (xb.length() > 0) {
-          xb.remove(xb.length() - 1, 1);
+        if (buf.length() > 0) {
+          buf.remove(buf.length() - 1, 1);
         }
         break;
       default:
-        if (xb == "0.") xb = "";
-        xb = xb + keymap[key];
+        buf += keymap[key];
         break;     
     }
-    Serial.println("xb:" + xb);
-    displayXB();
+    // TODO strtod --> x
+    displayFloat(buf);
   }
 }
 
 void calcEnable() {
   calcTask.enable();
   tm.setLED(FUNCT_LED(0), 1);
-  xb = "0.";
-  displayXB();
 }
 
 void calcDisable() {

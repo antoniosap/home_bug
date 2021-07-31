@@ -35,7 +35,7 @@ alimentazione USB
 FUNCTIONS LEDS:
 LED 0->CALC             |
 LED 1->NETWORK          |
-LED 2->WALL CLOCK       |
+LED 2                   |
 LED 3                   |
 LED 4                   |
 LED 5                   |
@@ -45,9 +45,9 @@ LED 7                   |
 FUNCTIONS KEYS:
 MENU BASE               | RPN CALC MODE          |
 ________________________|________________________|
-S-KEY 0->CALC           |
+S-KEY 0->CALC           | 0->WALL CLOCK 
 S-KEY 1->NETWORK        |
-S-KEY 2                 |
+S-KEY 2                 | CHS change sign
 S-KEY 3                 | ADD +
 S-KEY 4                 | SUB -
 S-KEY 5                 | MUL *
