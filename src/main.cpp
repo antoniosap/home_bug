@@ -3,7 +3,7 @@
 */
 #include <Arduino.h>
 #include <string>
-#include <strtod.cpp>
+#include "strtod.h"
 
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD        false
@@ -34,16 +34,8 @@
 TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, false);
 char display[TM_DISPLAY_SIZE + 1];
 
-#define FUNCT_BTN_NULL  0
-#define FUNCT_BTN_0     1
-#define FUNCT_BTN_1     2
-#define FUNCT_BTN_2     4
-#define FUNCT_BTN_3     8
-#define FUNCT_BTN_4     16
-#define FUNCT_BTN_5     32
-#define FUNCT_BTN_6     64
-#define FUNCT_BTN_7     128
-uint8_t functionBtn = FUNCT_BTN_NULL;
+uint8_t functionBtn = 0;
+uint8_t lastFunctionBtn = 0;
 
 #define FUNCT_LED(x)    (x)
 
@@ -137,12 +129,32 @@ void welcome() {
 };
 
 void displayFloat(String buf) {
-  if (buf.length() > TM_DISPLAY_SIZE) {
-    tm.displayText("  OVER  ");
-  } else {
-    buf.toCharArray(display, TM_DISPLAY_SIZE);
-    tm.displayText(display);
+  // trim decimal right zeroes
+  int8 decimalIndex = buf.indexOf('.');
+  if (decimalIndex > 0 ) {
+    for (uint8_t i = buf.length() - 1; i >= decimalIndex; i--) {
+      if (buf.charAt(i) != '0') break;
+      buf.remove(i);
+    }
   }
+  Serial.println("7:" + buf);
+  uint8_t len = buf.length();
+  Serial.println(len);
+  buf += String(TM_DISPLAY_SIZE, ' ');
+  if (len > TM_DISPLAY_SIZE) {
+    tm.setLED(FUNCT_LED(7), 1);
+  } else {
+    tm.setLED(FUNCT_LED(7), 0);
+  }
+  buf.toCharArray(display, TM_DISPLAY_SIZE);
+  tm.displayText(display);
+}
+
+double stringToDouble(String buf) {
+  char cbuf[33];
+
+  buf.toCharArray(cbuf, 33);
+  return p_strtod(cbuf, NULL);
 }
 
 uint8_t hour = 0;
@@ -171,13 +183,11 @@ void wallClock() {
 
 void wallClockEnable() {
   clockDisplay = true;
-  tm.setLED(FUNCT_LED(2), 1);
   tm.displayText("        ");
 }
 
 void wallClockDisable() {
   clockDisplay = false;
-  tm.setLED(FUNCT_LED(2), 0);
 }
 
 // stack registers
@@ -224,6 +234,7 @@ void calc() {
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
     String buf = String(x, 16);
+    Serial.println("1:" + buf);
     char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     switch (keymap[key]) {
       case 'D':
@@ -231,11 +242,24 @@ void calc() {
           buf.remove(buf.length() - 1, 1);
         }
         break;
+      case '.':
+        if (buf.indexOf('.') < 0) {
+          buf += keymap[key];
+        }
+        break;
       default:
         buf += keymap[key];
         break;     
     }
-    // TODO strtod --> x
+    // write to register
+    x = stringToDouble(buf);
+    Serial.println("3:" + String(x));
+    if (errno == ERANGE) {
+      Serial.println("2:" + errno);
+    };
+    // re-read register
+    buf = String(x, 16);
+    Serial.println("4:" + buf);
     displayFloat(buf);
   }
 }
@@ -243,6 +267,9 @@ void calc() {
 void calcEnable() {
   calcTask.enable();
   tm.setLED(FUNCT_LED(0), 1);
+  String buf = String(x, 16);
+  displayFloat(buf);
+  Serial.println("5:" + buf);
 }
 
 void calcDisable() {
@@ -288,6 +315,28 @@ int8_t keypadBtnTouched() {
 }
 
 //-------------------------------------------------------------------------------------------------------
+
+int8_t keyBtnPressed() {
+  int8_t btn = -1;
+  // Get the currently touched pads
+  functionBtn = tm.readButtons();
+  if (functionBtn) {
+    for (uint8_t i=0; i<8; i++) {
+      // it if *is* pressed and *wasnt* pressed before, alert!
+      if ((functionBtn & _BV(i)) && !(lastFunctionBtn & _BV(i)) ) {
+        btn = i;
+        break;
+      }
+      ESP.wdtFeed();
+    }
+  }
+  // reset our state
+  lastFunctionBtn = functionBtn;
+  return btn;
+}
+
+//-------------------------------------------------------------------------------------------------------
+
 void setup() {
   ESP.wdtDisable();
 
@@ -320,41 +369,40 @@ void loop() {
   ESP.wdtFeed();
   runner.execute();
   
-  functionBtn = tm.readButtons();
-  if (functionBtn != FUNCT_BTN_NULL) {
-    switch (functionBtn) {
-      case FUNCT_BTN_0:
+  int8_t btn = keyBtnPressed();
+  if (btn >= 0) {
+    switch (btn) {
+      case 0:
         wallClockDisable();
         calcEnable();
         break;
-      case FUNCT_BTN_1:
-
+      case 1:
         break;
-      case FUNCT_BTN_2:
+      case 2:
         calcDisable();
         wallClockEnable();
         break;
-      case FUNCT_BTN_3:
+      case 3:
         if (calcTask.isEnabled()) {
           op = '+';
         }
         break;
-      case FUNCT_BTN_4:
+      case 4:
         if (calcTask.isEnabled()) {
           op = '-';
         }
         break;
-      case FUNCT_BTN_5:
+      case 5:
         if (calcTask.isEnabled()) {
           op = '*';
         }
         break;
-      case FUNCT_BTN_6:
+      case 6:
         if (calcTask.isEnabled()) {
           op = '/';
         }
         break;
-      case FUNCT_BTN_7:
+      case 7:
         if (calcTask.isEnabled()) {
           op = '='; // ENTER
         }
