@@ -137,10 +137,10 @@ void displayFloat(String buf) {
       buf.remove(i);
     }
   }
-  Serial.println("7:" + buf);
+  Serial.println("7:" + buf + '*');
   uint8_t len = buf.length();
-  Serial.println(len);
-  buf += String(TM_DISPLAY_SIZE, ' ');
+  buf += "        "; // TM_DISPLAY_SIZE
+  Serial.println("71:" + buf + '*');
   if (len > TM_DISPLAY_SIZE) {
     tm.setLED(FUNCT_LED(7), 1);
   } else {
@@ -269,7 +269,6 @@ void calcEnable() {
   tm.setLED(FUNCT_LED(0), 1);
   String buf = String(x, 16);
   displayFloat(buf);
-  Serial.println("5:" + buf);
 }
 
 void calcDisable() {
