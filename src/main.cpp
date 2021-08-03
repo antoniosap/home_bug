@@ -9,6 +9,7 @@
 #define DEBUG_KEYPAD        false
 #define UART_ECHO           (0)
 #define UART_BAUDRATE       (115200)
+#define FLOAT_DECIMALS      (15)
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
 /*
@@ -128,19 +129,46 @@ void welcome() {
   }
 };
 
-void displayFloat(String buf) {
+String trimRightZeroesFloat(String buf) {
   // trim decimal right zeroes
   int8 decimalIndex = buf.indexOf('.');
   if (decimalIndex > 0 ) {
     for (uint8_t i = buf.length() - 1; i >= decimalIndex; i--) {
-      if (buf.charAt(i) != '0') break;
-      buf.remove(i);
+      char c = buf.charAt(i);
+      if (c != '0') {
+        if (c == '.') buf.remove(i, 1);
+        break;
+      }
+      buf.remove(i, 1);
     }
   }
+  return buf;
+}
+
+String trimLeftZeroesFloat(String buf) {
+  // trim decimal left zeroes
+  Serial.println("A:" + buf + '*');
+  for (uint8_t i = 0; i < buf.length(); i++) {
+    if (buf.charAt(i) != '0') {
+      if (i > 0) buf.remove(0, i);
+      break;
+    }
+  }
+  Serial.println("B:" + buf + '*');
+  return buf;
+}
+
+String trimZeroesFloat(String buf) {
+  buf = trimRightZeroesFloat(buf);
+  buf = trimLeftZeroesFloat(buf);
+  return buf;
+}
+
+void displayFloat(String buf) {
+  buf = trimZeroesFloat(buf);
   Serial.println("7:" + buf + '*');
   uint8_t len = buf.length();
   buf += "        "; // TM_DISPLAY_SIZE
-  Serial.println("71:" + buf + '*');
   if (len > TM_DISPLAY_SIZE) {
     tm.setLED(FUNCT_LED(7), 1);
   } else {
@@ -148,6 +176,11 @@ void displayFloat(String buf) {
   }
   buf.toCharArray(display, TM_DISPLAY_SIZE);
   tm.displayText(display);
+}
+
+String doubleTrimRightZeroes(double value) {
+  String buf = String(value, FLOAT_DECIMALS);
+  return trimZeroesFloat(buf);
 }
 
 double stringToDouble(String buf) {
@@ -174,7 +207,7 @@ void wallClock() {
     seconds = 0;
     if (++minutes > 59) {
       minutes = 0;
-      if (++hour > 24) {
+      if (++hour > 23) {
         hour = 0;
       }
     }
@@ -183,6 +216,7 @@ void wallClock() {
 
 void wallClockEnable() {
   clockDisplay = true;
+  tm.setLEDs(0);
   tm.displayText("        ");
 }
 
@@ -233,7 +267,7 @@ void calc() {
 //  K00->0          K04->.           K08->del
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
-    String buf = String(x, 16);
+    String buf = doubleTrimRightZeroes(x);
     Serial.println("1:" + buf);
     char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     switch (keymap[key]) {
@@ -253,21 +287,19 @@ void calc() {
     }
     // write to register
     x = stringToDouble(buf);
-    Serial.println("3:" + String(x));
+    Serial.println("3:" + buf);
     if (errno == ERANGE) {
       Serial.println("2:" + errno);
     };
-    // re-read register
-    buf = String(x, 16);
-    Serial.println("4:" + buf);
     displayFloat(buf);
   }
 }
 
 void calcEnable() {
   calcTask.enable();
+  tm.setLEDs(0);
   tm.setLED(FUNCT_LED(0), 1);
-  String buf = String(x, 16);
+  String buf = String(x, FLOAT_DECIMALS);
   displayFloat(buf);
 }
 
