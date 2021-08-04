@@ -206,11 +206,8 @@ void doubleTrimRightZeroes(double value) {
   Serial.println('*');
 }
 
-double stringToDouble(String buf) {
-  char cbuf[33];
-
-  buf.toCharArray(cbuf, 33);
-  return p_strtod(cbuf, NULL);
+double stringToDouble() {
+  return p_strtod(display, NULL);
 }
 
 uint8_t hour = 0;
@@ -295,15 +292,17 @@ void calc() {
     Serial.print(display);
     Serial.println('*');
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
+    uint8_t len;
+    char *p;
     switch (keymap[key]) {
       case 'D':
-        uint8_t len = strlen(display);
+        len = strlen(display);
         if (len > 0) {
           display[len - 1] = 0;
         }
         break;
       case '.':
-      char *p = strchr(display, '.');
+        p = strchr(display, '.');
         if (p != NULL) {
           strcat(display, ".");
         }
@@ -314,12 +313,14 @@ void calc() {
         break;     
     }
     // write to register
-    x = stringToDouble(buf);
-    Serial.println("3:" + buf);
+    x = stringToDouble();
+    Serial.print("D2:");
+    Serial.print(display);
+    Serial.println('*');
     if (errno == ERANGE) {
       Serial.println("2:" + errno);
     };
-    displayFloat(buf);
+    displayFloat();
   }
 }
 
@@ -327,8 +328,8 @@ void calcEnable() {
   calcTask.enable();
   tm.setLEDs(0);
   tm.setLED(FUNCT_LED(0), 1);
-  String buf = String(x, FLOAT_DECIMALS);
-  displayFloat(buf);
+  doubleTrimRightZeroes(x);
+  displayFloat();
 }
 
 void calcDisable() {
