@@ -2,7 +2,8 @@
 //-------------------------------------------------------------------------------------------------------
 */
 #include <Arduino.h>
-#include <string>
+// https://github.com/arduino/ArduinoCore-avr/blob/master/cores/arduino/WString.cpp
+// #include <string>
 #include "strtod.h"
 
 //-- DEBUG ---------------------------------------------------------------------
@@ -33,7 +34,7 @@
 
 // Constructor object Init the module
 TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, false);
-char display[TM_DISPLAY_SIZE + 1];
+char display[TM_DISPLAY_SIZE * 4 + 1];    // display and format buffers 33 bytes 
 
 uint8_t functionBtn = 0;
 uint8_t lastFunctionBtn = 0;
@@ -129,58 +130,80 @@ void welcome() {
   }
 };
 
-String trimRightZeroesFloat(String buf) {
+// cpp reference
+// https://en.cppreference.com/w/c/string/byte/strchr
+
+// display buf -> display buf
+void trimRightZeroesFloat() {
   // trim decimal right zeroes
-  int8 decimalIndex = buf.indexOf('.');
-  if (decimalIndex > 0 ) {
-    for (uint8_t i = buf.length() - 1; i >= decimalIndex; i--) {
-      char c = buf.charAt(i);
-      if (c != '0') {
-        if (c == '.') buf.remove(i, 1);
+  Serial.print("C:");
+  Serial.print(display);
+  Serial.println('*');
+  const char* decimalIndex = strchr(display, '.');
+  if (decimalIndex != NULL ) {
+    char *p = display + strlen(display) - 1;
+    while (p >= decimalIndex) {
+      if (*p != '0') {
+        if (*p == '.') *p = 0;
         break;
       }
-      buf.remove(i, 1);
+      p--;
     }
   }
-  return buf;
+  Serial.print("D:");
+  Serial.print(display);
+  Serial.println('*');
 }
 
-String trimLeftZeroesFloat(String buf) {
+void trimLeftZeroesFloat() {
   // trim decimal left zeroes
-  Serial.println("A:" + buf + '*');
-  for (uint8_t i = 0; i < buf.length(); i++) {
-    if (buf.charAt(i) != '0') {
-      if (i > 0) buf.remove(0, i);
-      break;
+  Serial.print("A:");
+  Serial.print(display);
+  Serial.println('*');
+  const char* p = display;
+  while (!*p) {
+    if (*p != '0') {
+      strcpy(display, p); // waring: strings overlap
     }
+    p++;
   }
-  Serial.println("B:" + buf + '*');
-  return buf;
+  Serial.print("B:");
+  Serial.print(display);
+  Serial.println('*');
 }
 
-String trimZeroesFloat(String buf) {
-  buf = trimRightZeroesFloat(buf);
-  buf = trimLeftZeroesFloat(buf);
-  return buf;
+void trimZeroesFloat() {
+  trimRightZeroesFloat();
+  trimLeftZeroesFloat();
 }
 
-void displayFloat(String buf) {
-  buf = trimZeroesFloat(buf);
-  Serial.println("7:" + buf + '*');
-  uint8_t len = buf.length();
-  buf += "        "; // TM_DISPLAY_SIZE
+void displayFloat() {
+  trimZeroesFloat();
+  Serial.print("E:");
+  Serial.print(display);
+  Serial.println('*');
+  uint8_t len = strlen(display);
+  strcat(display, "        "); // TM_DISPLAY_SIZE
   if (len > TM_DISPLAY_SIZE) {
     tm.setLED(FUNCT_LED(7), 1);
   } else {
     tm.setLED(FUNCT_LED(7), 0);
   }
-  buf.toCharArray(display, TM_DISPLAY_SIZE);
   tm.displayText(display);
 }
 
-String doubleTrimRightZeroes(double value) {
-  String buf = String(value, FLOAT_DECIMALS);
-  return trimZeroesFloat(buf);
+void doubleTrimRightZeroes(double value) {
+  Serial.print("F1:");
+  Serial.print(value);
+  Serial.println('*');
+  snprintf(display, TM_DISPLAY_SIZE * 2, "%f", value);
+  Serial.print("F2:");
+  Serial.print(display);
+  Serial.println('*');
+  trimZeroesFloat();
+  Serial.print("F3:");
+  Serial.print(display);
+  Serial.println('*');
 }
 
 double stringToDouble(String buf) {
@@ -267,22 +290,27 @@ void calc() {
 //  K00->0          K04->.           K08->del
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
-    String buf = doubleTrimRightZeroes(x);
-    Serial.println("1:" + buf);
-    char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
+    doubleTrimRightZeroes(x);
+    Serial.print("D1:");
+    Serial.print(display);
+    Serial.println('*');
+    const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     switch (keymap[key]) {
       case 'D':
-        if (buf.length() > 0) {
-          buf.remove(buf.length() - 1, 1);
+        uint8_t len = strlen(display);
+        if (len > 0) {
+          display[len - 1] = 0;
         }
         break;
       case '.':
-        if (buf.indexOf('.') < 0) {
-          buf += keymap[key];
+      char *p = strchr(display, '.');
+        if (p != NULL) {
+          strcat(display, ".");
         }
         break;
       default:
-        buf += keymap[key];
+        const char c[] = {keymap[key], 0};
+        strcat(display, c);
         break;     
     }
     // write to register
