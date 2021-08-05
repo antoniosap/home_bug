@@ -160,10 +160,13 @@ void trimLeftZeroesFloat() {
   Serial.print("A:");
   Serial.print(display);
   Serial.println('*');
-  const char* p = display;
-  while (!*p) {
+  char buf[TM_DISPLAY_SIZE * 4 + 1];
+  const char* p = buf;
+  strcpy(buf, display);
+  while (*p != 0) {
+    Serial.println(*p);
     if (*p != '0') {
-      strcpy(display, p); // waring: strings overlap
+      strcpy(display, p);
     }
     p++;
   }
@@ -196,7 +199,7 @@ void doubleTrimRightZeroes(double value) {
   Serial.print("F1:");
   Serial.print(value);
   Serial.println('*');
-  snprintf(display, TM_DISPLAY_SIZE * 2, "%f", value);
+  snprintf(display, TM_DISPLAY_SIZE * 4, "%.16f", value);
   Serial.print("F2:");
   Serial.print(display);
   Serial.println('*');
