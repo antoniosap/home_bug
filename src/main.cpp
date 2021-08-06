@@ -167,6 +167,7 @@ void trimLeftZeroesFloat() {
     Serial.println(*p);
     if (*p != '0') {
       strcpy(display, p);
+      break;
     }
     p++;
   }
@@ -295,25 +296,31 @@ void calc() {
     Serial.print(display);
     Serial.println('*');
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
-    uint8_t len;
+    uint8_t len = strlen(display);
     char *p;
     switch (keymap[key]) {
       case 'D':
-        len = strlen(display);
         if (len > 0) {
-          display[len - 1] = 0;
+          display[--len] = 0;
         }
         break;
       case '.':
         p = strchr(display, '.');
         if (p != NULL) {
+          Serial.println("P1");
           strcat(display, ".");
+        } else {
+          Serial.println("P2");
         }
         break;
       default:
         const char c[] = {keymap[key], 0};
         strcat(display, c);
         break;     
+    }
+    if (len == 0) {
+      display[0] = '0';
+      display[1] = 0;
     }
     // write to register
     x = stringToDouble();
