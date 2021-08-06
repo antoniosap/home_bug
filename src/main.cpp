@@ -130,10 +130,11 @@ void welcome() {
   }
 };
 
+bool userDigitPoint = false;
+
 // cpp reference
 // https://en.cppreference.com/w/c/string/byte/strchr
-
-// display buf -> display buf
+//
 void trimRightZeroesFloat() {
   // trim decimal right zeroes
   Serial.print("C:");
@@ -144,7 +145,13 @@ void trimRightZeroesFloat() {
     char *p = display + strlen(display) - 1;
     while (p >= decimalIndex) {
       if (*p != '0') {
-        if (*p == '.') *p = 0;
+        if (*p == '.') {
+          if (userDigitPoint) {
+            *(p + 1) = 0;
+            break;
+          }
+          *p = 0;
+        }
         break;
       }
       p--;
@@ -164,7 +171,6 @@ void trimLeftZeroesFloat() {
   const char* p = buf;
   strcpy(buf, display);
   while (*p != 0) {
-    Serial.println(*p);
     if (*p != '0') {
       strcpy(display, p);
       break;
@@ -200,7 +206,7 @@ void doubleTrimRightZeroes(double value) {
   Serial.print("F1:");
   Serial.print(value);
   Serial.println('*');
-  snprintf(display, TM_DISPLAY_SIZE * 4, "%.16f", value);
+  snprintf(display, TM_DISPLAY_SIZE * 4, "%.16f", value);  PORTARE A 12
   Serial.print("F2:");
   Serial.print(display);
   Serial.println('*');
@@ -297,20 +303,19 @@ void calc() {
     Serial.println('*');
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     uint8_t len = strlen(display);
-    char *p;
     switch (keymap[key]) {
       case 'D':
         if (len > 0) {
-          display[--len] = 0;
+          if (display[--len] == '.') {
+            userDigitPoint = false;
+          }
+          display[len] = 0;
         }
         break;
       case '.':
-        p = strchr(display, '.');
-        if (p != NULL) {
-          Serial.println("P1");
+        if (!strchr(display, '.')) {
           strcat(display, ".");
-        } else {
-          Serial.println("P2");
+          userDigitPoint = true;
         }
         break;
       default:
@@ -420,7 +425,7 @@ void setup() {
     Serial.println("E:MPR121 not found");
     while (1);
   }
-  Serial.println("I:MPR121 found!");
+  Serial.println("I:START");
   cap.setThresholds(70, 100);
   ESP.wdtEnable(1000);
 
