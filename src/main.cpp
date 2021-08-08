@@ -7,10 +7,13 @@
 #include "strtod.h"
 
 //-- DEBUG ---------------------------------------------------------------------
-#define DEBUG_KEYPAD        false
-#define UART_ECHO           (0)
-#define UART_BAUDRATE       (115200)
-#define FLOAT_DECIMALS      (15)
+#define DEBUG_KEYPAD            false
+#define UART_ECHO               (0)
+#define UART_BAUDRATE           (115200)
+#define FLOAT_DECIMALS          (15)
+#define DISPLAY_TRUNC_LEN       (12)
+#define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 4)
+#define DISPLAY_MAX_USER_LEN    (DISPLAY_BUFFER_LEN - 1)
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
 /*
@@ -34,7 +37,9 @@
 
 // Constructor object Init the module
 TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, false);
-char display[TM_DISPLAY_SIZE * 4 + 1];    // display and format buffers 33 bytes 
+char    display[DISPLAY_BUFFER_LEN + 1];    // display and format buffers 33 bytes 
+char    *displayBaseP = display;            // index per il scroll display
+char    *displayCursor = display;
 
 uint8_t functionBtn = 0;
 uint8_t lastFunctionBtn = 0;
@@ -135,7 +140,7 @@ bool userDigitPoint = false;
 // cpp reference
 // https://en.cppreference.com/w/c/string/byte/strchr
 //
-void trimRightZeroesFloat() {
+void trimRightDisplay() {
   // trim decimal right zeroes
   Serial.print("C:");
   Serial.print(display);
@@ -162,16 +167,16 @@ void trimRightZeroesFloat() {
   Serial.println('*');
 }
 
-void trimLeftZeroesFloat() {
+void trimLeftDisplay(char trimChar) {
   // trim decimal left zeroes
   Serial.print("A:");
   Serial.print(display);
   Serial.println('*');
-  char buf[TM_DISPLAY_SIZE * 4 + 1];
+  char buf[DISPLAY_BUFFER_LEN + 1];
   const char* p = buf;
   strcpy(buf, display);
   while (*p != 0) {
-    if (*p != '0') {
+    if (*p != trimChar) {
       strcpy(display, p);
       break;
     }
@@ -182,13 +187,13 @@ void trimLeftZeroesFloat() {
   Serial.println('*');
 }
 
-void trimZeroesFloat() {
-  trimRightZeroesFloat();
-  trimLeftZeroesFloat();
+void trimDisplay() {
+  trimRightDisplay();
+  trimLeftDisplay('0');
 }
 
 void displayFloat() {
-  trimZeroesFloat();
+  trimDisplay();
   Serial.print("E:");
   Serial.print(display);
   Serial.println('*');
@@ -206,11 +211,12 @@ void doubleTrimRightZeroes(double value) {
   Serial.print("F1:");
   Serial.print(value);
   Serial.println('*');
-  snprintf(display, TM_DISPLAY_SIZE * 4, "%.16f", value);  PORTARE A 12
+  snprintf(display, DISPLAY_BUFFER_LEN, "%.16f", value);
+  display[DISPLAY_TRUNC_LEN + 1] = 0;
   Serial.print("F2:");
   Serial.print(display);
   Serial.println('*');
-  trimZeroesFloat();
+  trimDisplay();
   Serial.print("F3:");
   Serial.print(display);
   Serial.println('*');
@@ -261,12 +267,11 @@ double y = 0;
 double x = 0; // on display
 char op = ' ';
 
-// void displayXB() {
-//   String buf = "        " + xb;
-//   buf = buf.substring(buf.length() - TM_DISPLAY_SIZE + 1);
-//   buf.toCharArray(display, TM_DISPLAY_SIZE + 1);
-//   tm.displayText(display);
-// }
+void displayResetZero() {
+  display[0] = '0';
+  display[1] = 0;
+  displayCursor = display;
+}
 
 void calc() {
   switch (op) {
@@ -297,45 +302,48 @@ void calc() {
 //  K00->0          K04->.           K08->del
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
-    doubleTrimRightZeroes(x);
-    Serial.print("D1:");
-    Serial.print(display);
-    Serial.println('*');
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
-    uint8_t len = strlen(display);
     switch (keymap[key]) {
       case 'D':
-        if (len > 0) {
-          if (display[--len] == '.') {
+        if (displayCursor > display) {
+          if (*(--displayCursor) == '.') {
             userDigitPoint = false;
           }
-          display[len] = 0;
+          *displayCursor = 0;
         }
         break;
       case '.':
+        if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
         if (!strchr(display, '.')) {
-          strcat(display, ".");
+          *(displayCursor++) = '0';
+          *(displayCursor + 1) = 0;
           userDigitPoint = true;
+          displayCursor++;
         }
         break;
       default:
-        const char c[] = {keymap[key], 0};
-        strcat(display, c);
+        if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
+        *(displayCursor++) = keymap[key];
+        *(displayCursor + 1) = 0;
         break;     
     }
-    if (len == 0) {
-      display[0] = '0';
-      display[1] = 0;
+    if (displayCursor == display) {
+      displayResetZero();
     }
-    // write to register
-    x = stringToDouble();
-    Serial.print("D2:");
+    if (displayCursor > display + TM_DISPLAY_SIZE) {
+      tm.setLED(FUNCT_LED(7), 1);   // display overflow
+      displayBaseP = display + ((displayCursor - display) / TM_DISPLAY_SIZE) * TM_DISPLAY_SIZE; // integer division
+    } else {
+      tm.setLED(FUNCT_LED(7), 0);
+      displayBaseP = display;
+    }
+    tm.displayText(displayBaseP);
+    Serial.print("Y1:");
     Serial.print(display);
     Serial.println('*');
-    if (errno == ERANGE) {
-      Serial.println("2:" + errno);
-    };
-    displayFloat();
+    Serial.print("Y2:");
+    Serial.print(displayBaseP);
+    Serial.println('*');
   }
 }
 
@@ -430,6 +438,7 @@ void setup() {
   ESP.wdtEnable(1000);
 
   tm.displayBegin();
+  displayResetZero();
   
   runner.init();
   runner.addTask(welcomeTask);
