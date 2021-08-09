@@ -167,6 +167,10 @@ void trimRightDisplay() {
   Serial.println('*');
 }
 
+void clearDisplay() {
+  tm.displayText("        "); // TM_DISPLAY_SIZE
+}
+
 void trimLeftDisplay(char trimChar) {
   // trim decimal left zeroes
   Serial.print("A:");
@@ -268,6 +272,7 @@ double x = 0; // on display
 char op = ' ';
 
 void displayResetZero() {
+  Serial.println("displayResetZero");
   display[0] = '0';
   display[1] = 0;
   displayCursor = display;
@@ -309,14 +314,16 @@ void calc() {
           if (*(--displayCursor) == '.') {
             userDigitPoint = false;
           }
-          *displayCursor = 0;
+          *displayCursor = ' '; // TM1638 non cancella la cifra, va impostato a blank
+          *(displayCursor + 1) = 0;
+          tm.displayText(displayBaseP);
         }
         break;
       case '.':
         if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
         if (!strchr(display, '.')) {
-          *(displayCursor++) = '0';
-          *(displayCursor + 1) = 0;
+          *(displayCursor++) = '.';
+          *displayCursor = 0;
           userDigitPoint = true;
           displayCursor++;
         }
@@ -324,14 +331,14 @@ void calc() {
       default:
         if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
         *(displayCursor++) = keymap[key];
-        *(displayCursor + 1) = 0;
+        *displayCursor = 0;
         break;     
     }
     if (displayCursor == display) {
       displayResetZero();
     }
     if (displayCursor > display + TM_DISPLAY_SIZE) {
-      tm.setLED(FUNCT_LED(7), 1);   // display overflow
+      tm.setLED(FUNCT_LED(7), 1);   // display overflow + init scroll
       displayBaseP = display + ((displayCursor - display) / TM_DISPLAY_SIZE) * TM_DISPLAY_SIZE; // integer division
     } else {
       tm.setLED(FUNCT_LED(7), 0);
