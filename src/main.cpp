@@ -12,8 +12,9 @@
 #define UART_BAUDRATE           (115200)
 #define FLOAT_DECIMALS          (15)
 #define DISPLAY_TRUNC_LEN       (12)
-#define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 4)
-#define DISPLAY_MAX_USER_LEN    (DISPLAY_BUFFER_LEN - 1)
+#define DISPLAY_USER_LEN        (TM_DISPLAY_SIZE * 2)
+#define DISPLAY_MAX_USER_LEN    (DISPLAY_USER_LEN - 1)
+#define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 3)
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
 /*
@@ -176,7 +177,7 @@ void trimLeftDisplay(char trimChar) {
   Serial.print("A:");
   Serial.print(display);
   Serial.println('*');
-  char buf[DISPLAY_BUFFER_LEN + 1];
+  char buf[DISPLAY_USER_LEN + 1];
   const char* p = buf;
   strcpy(buf, display);
   while (*p != 0) {
@@ -316,6 +317,13 @@ void calc() {
           }
           *displayCursor = ' '; // TM1638 non cancella la cifra, va impostato a blank
           *(displayCursor + 1) = 0;
+          if (displayCursor < display + TM_DISPLAY_SIZE) {
+            // reset display overflow indicator + display right scroll
+            tm.setLED(FUNCT_LED(7), 0);
+            if (displayBaseP > display) {
+              displayBaseP--;
+            }
+          }
           tm.displayText(displayBaseP);
         }
         break;
@@ -326,20 +334,31 @@ void calc() {
           *displayCursor = 0;
           userDigitPoint = true;
           displayCursor++;
+          if (displayCursor >= display + TM_DISPLAY_SIZE) {
+            // set display overflow indicator + display right scroll
+            tm.setLED(FUNCT_LED(7), 1);
+            displayBaseP++;
+          }
         }
         break;
       default:
         if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
         *(displayCursor++) = keymap[key];
         *displayCursor = 0;
+        if (displayCursor >= display + TM_DISPLAY_SIZE) {
+            // set display overflow indicator + display right scroll
+            tm.setLED(FUNCT_LED(7), 1);
+            displayBaseP++;
+        } 
         break;     
     }
     if (displayCursor == display) {
       displayResetZero();
     }
-    if (displayCursor > display + TM_DISPLAY_SIZE) {
+    if (displayCursor >= display + TM_DISPLAY_SIZE) {
       tm.setLED(FUNCT_LED(7), 1);   // display overflow + init scroll
-      displayBaseP = display + ((displayCursor - display) / TM_DISPLAY_SIZE) * TM_DISPLAY_SIZE; // integer division
+      // displayBaseP = display + ((displayCursor - display) / TM_DISPLAY_SIZE) * TM_DISPLAY_SIZE; // integer division
+      displayBaseP++;
     } else {
       tm.setLED(FUNCT_LED(7), 0);
       displayBaseP = display;
