@@ -13,7 +13,7 @@
 #define FLOAT_DECIMALS          (15)
 #define DISPLAY_TRUNC_LEN       (12)
 #define DISPLAY_USER_LEN        (TM_DISPLAY_SIZE * 2)
-#define DISPLAY_MAX_USER_LEN    (DISPLAY_USER_LEN - 1)
+#define DISPLAY_MAX_USER_LEN    (DISPLAY_USER_LEN)
 #define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 3)
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
@@ -309,6 +309,8 @@ void calc() {
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
+    Serial.print("KEY:");
+    Serial.println(keymap[key]);
     switch (keymap[key]) {
       case 'D':
         if (displayCursor > display) {
@@ -317,24 +319,25 @@ void calc() {
           }
           *displayCursor = ' '; // TM1638 non cancella la cifra, va impostato a blank
           *(displayCursor + 1) = 0;
-          if (displayCursor < display + TM_DISPLAY_SIZE) {
-            // reset display overflow indicator + display right scroll
-            tm.setLED(FUNCT_LED(7), 0);
+          if (displayCursor > display + TM_DISPLAY_SIZE) {
             if (displayBaseP > display) {
-              displayBaseP--;
+                displayBaseP--;
             }
+          } else {
+            // reset display overflow indicator + display at home position
+            tm.setLED(FUNCT_LED(7), 0);
+            displayBaseP = display;
           }
           tm.displayText(displayBaseP);
         }
         break;
       case '.':
         if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
-        if (!strchr(display, '.')) {
+        if (!userDigitPoint) {
+          userDigitPoint = true;
           *(displayCursor++) = '.';
           *displayCursor = 0;
-          userDigitPoint = true;
-          displayCursor++;
-          if (displayCursor >= display + TM_DISPLAY_SIZE) {
+          if (displayCursor > display + TM_DISPLAY_SIZE) {
             // set display overflow indicator + display right scroll
             tm.setLED(FUNCT_LED(7), 1);
             displayBaseP++;
@@ -345,23 +348,18 @@ void calc() {
         if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
         *(displayCursor++) = keymap[key];
         *displayCursor = 0;
-        if (displayCursor >= display + TM_DISPLAY_SIZE) {
+        if (displayCursor > display + TM_DISPLAY_SIZE + userDigitPoint ? 1 : 0) {
             // set display overflow indicator + display right scroll
             tm.setLED(FUNCT_LED(7), 1);
             displayBaseP++;
+            if (*displayBaseP == '.') {
+              displayBaseP++;
+            }
         } 
         break;     
     }
     if (displayCursor == display) {
       displayResetZero();
-    }
-    if (displayCursor >= display + TM_DISPLAY_SIZE) {
-      tm.setLED(FUNCT_LED(7), 1);   // display overflow + init scroll
-      // displayBaseP = display + ((displayCursor - display) / TM_DISPLAY_SIZE) * TM_DISPLAY_SIZE; // integer division
-      displayBaseP++;
-    } else {
-      tm.setLED(FUNCT_LED(7), 0);
-      displayBaseP = display;
     }
     tm.displayText(displayBaseP);
     Serial.print("Y1:");

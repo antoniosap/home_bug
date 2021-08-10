@@ -40,7 +40,7 @@ LED 3                   |
 LED 4                   |
 LED 5                   |
 LED 6                   |
-LED 7                   |
+LED 7->CALC SCROLL      | fino a 16 cifre sul display da 8 cifre
 
 FUNCTIONS KEYS:
 MENU BASE               | RPN CALC MODE          |
