@@ -319,12 +319,19 @@ void calc() {
           }
           *displayCursor = ' '; // TM1638 non cancella la cifra, va impostato a blank
           *(displayCursor + 1) = 0;
+          if (userDigitPoint && *displayCursor == ' ') {
+            *displayCursor = 0;
+          }
           if (displayCursor > display + TM_DISPLAY_SIZE) {
             if (displayBaseP > display) {
                 displayBaseP--;
             }
           } else {
             // reset display overflow indicator + display at home position
+            tm.setLED(FUNCT_LED(7), 0);
+            displayBaseP = display;
+          }
+          if (userDigitPoint && (displayCursor > display + TM_DISPLAY_SIZE)) {
             tm.setLED(FUNCT_LED(7), 0);
             displayBaseP = display;
           }
@@ -372,9 +379,9 @@ void calc() {
 }
 
 void calcEnable() {
-  calcTask.enable();
   tm.setLEDs(0);
   tm.setLED(FUNCT_LED(0), 1);
+  calcTask.enable();
   doubleTrimRightZeroes(x);
   displayFloat();
 }

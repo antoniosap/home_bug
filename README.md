@@ -63,3 +63,9 @@ KEYPAD MAPPINGS:
  K01->1          K05->2           K09->3
  K00->0          K04->.           K08->del
 
+TODO
+mettere CALC 1 secondo all'avvio della funzione
+inserire un cursore _ lampeggiante
+inserire CHS cambio segno
+inserire ENTER
+mettere ENTER 1 secondo all'avvio della funzione
