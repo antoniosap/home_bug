@@ -111,6 +111,8 @@ void calcWelcome();
 int8_t keypadBtnTouched();
 Task calcTask(100, TASK_FOREVER, &calc);
 Task calcWelcomeTask(1500, TASK_FOREVER, &calcWelcome);
+void calcWelcomeOP();
+Task calcWelcomeOPTask(1500, TASK_FOREVER, &calcWelcomeOP);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
@@ -426,27 +428,42 @@ void calcWelcome() {
 
 void calcWelcomeOP() {
   switch (calcWelcomeOPState) {
-    case '+':
-      tm.displayText("  ADD   ");
-      break;
-    case '-':
-      tm.displayText("  SUB   ");
-      break;
-    case '*':
-      tm.displayText("  MUL   ");
-      break;
-    case '/':
-      tm.displayText("  DIV   ");
-      break;
-    case '=':
-      tm.displayText(" ENTER  ");
-      break;
+    case 0:
+      switch (op) {
+        case 'S':
+          tm.displayText("CHN SIGN");
+          break;
+        case '+':
+          tm.displayText("  ADD   ");
+          break;
+        case '-':
+          tm.displayText("  SUB   ");
+          break;
+        case '*':
+          tm.displayText("  MUL   ");
+          break;
+        case '/':
+          tm.displayText("  DIV   ");
+          break;
+        case '=':
+          tm.displayText(" ENTER  ");
+          break;
+      }
+      calcWelcomeOPState++;
+      break;  
     case 1:
       clearDisplay();
+      tm.displayText(displayBaseP);
       calcWelcomeOPState = 0;
-      return;
+      calcWelcomeOPTask.disable();
+      break;
   }
-  calcWelcomeOPState++;  
+}
+
+void calcWelcomeOPEnable() {
+  calcWelcomeOPState = 0;
+  runner.addTask(calcWelcomeOPTask);
+  calcWelcomeOPTask.enable();
 }
 
 void calcEnable() {
@@ -556,38 +573,50 @@ void loop() {
   if (btn >= 0) {
     switch (btn) {
       case 0:
-        wallClockDisable();
-        calcEnable();
+        if (calcTask.isEnabled()) {
+          calcDisable();
+          wallClockEnable();       
+        } else {
+          wallClockDisable();
+          calcEnable();
+        }
         break;
       case 1:
+        if (calcTask.isEnabled()) {
+          op = 'S';
+          calcWelcomeOPEnable();
+        }
         break;
       case 2:
-        calcDisable();
-        wallClockEnable();
         break;
       case 3:
         if (calcTask.isEnabled()) {
           op = '+';
+          calcWelcomeOPEnable();
         }
         break;
       case 4:
         if (calcTask.isEnabled()) {
           op = '-';
+          calcWelcomeOPEnable();
         }
         break;
       case 5:
         if (calcTask.isEnabled()) {
           op = '*';
+          calcWelcomeOPEnable();
         }
         break;
       case 6:
         if (calcTask.isEnabled()) {
           op = '/';
+          calcWelcomeOPEnable();
         }
         break;
       case 7:
         if (calcTask.isEnabled()) {
           op = '='; // ENTER
+          calcWelcomeOPEnable();
         }
         break;
     }

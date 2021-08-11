@@ -45,9 +45,9 @@ LED 7->CALC SCROLL      | fino a 16 cifre sul display da 8 cifre
 FUNCTIONS KEYS:
 MENU BASE               | RPN CALC MODE          |
 ________________________|________________________|
-S-KEY 0->CALC           | 0->WALL CLOCK 
-S-KEY 1->NETWORK        |
-S-KEY 2                 | CHS change sign
+S-KEY 0->CALC           | 0->WALL CLOCK
+S-KEY 1->NETWORK        | CHS change sign
+S-KEY 2                 |
 S-KEY 3                 | ADD +
 S-KEY 4                 | SUB -
 S-KEY 5                 | MUL *
