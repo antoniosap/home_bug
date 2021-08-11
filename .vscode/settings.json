@@ -1,6 +1,14 @@
 {
     "files.associations": {
         "ranges": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "optional": "cpp",
+        "ostream": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp"
     }
 }
