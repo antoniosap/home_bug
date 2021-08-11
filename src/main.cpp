@@ -107,12 +107,17 @@ void wallClockEnable();
 Task clockTask(1000, TASK_FOREVER, &wallClock);
 void calc();
 void calcEnable();
+void calcWelcome();
 int8_t keypadBtnTouched();
 Task calcTask(100, TASK_FOREVER, &calc);
+Task calcWelcomeTask(1500, TASK_FOREVER, &calcWelcome);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
 bool welcomeFirst = true;
+
+uint8_t calcWelcomeState = 0;
+uint8_t calcWelcomeOPState = 0;
 
 void welcome() {
   if (welcomeState == 0) {
@@ -172,20 +177,22 @@ void clearDisplay() {
   tm.displayText("        "); // TM_DISPLAY_SIZE
 }
 
-void trimLeftDisplay(char trimChar) {
+void trimLeftDisplay() {
   // trim decimal left zeroes
   Serial.print("A:");
   Serial.print(display);
   Serial.println('*');
-  char buf[DISPLAY_USER_LEN + 1];
-  const char* p = buf;
-  strcpy(buf, display);
-  while (*p != 0) {
-    if (*p != trimChar) {
-      strcpy(display, p);
-      break;
+  if (strcmp(display, "0.")) {
+    char buf[DISPLAY_USER_LEN + 1];
+    const char *p = buf;
+    strcpy(buf, display);
+    while (!*p) {
+      if (*p != '0') {
+        strcpy(display, p);
+        break;
+      }
+      p++;
     }
-    p++;
   }
   Serial.print("B:");
   Serial.print(display);
@@ -194,7 +201,7 @@ void trimLeftDisplay(char trimChar) {
 
 void trimDisplay() {
   trimRightDisplay();
-  trimLeftDisplay('0');
+  trimLeftDisplay();
 }
 
 void displayFloat() {
@@ -277,6 +284,10 @@ void displayResetZero() {
   display[0] = '0';
   display[1] = 0;
   displayCursor = display;
+  userDigitPoint = false;
+  // reset display overflow indicator + display at home position
+  tm.setLED(FUNCT_LED(7), 0);
+  displayBaseP = display;
 }
 
 void calc() {
@@ -314,10 +325,11 @@ void calc() {
     switch (keymap[key]) {
       case 'D':
         if (displayCursor > display) {
+          clearDisplay();           // il TM1638 non cancella la cifra precedente, va impostato a blank
           if (*(--displayCursor) == '.') {
             userDigitPoint = false;
           }
-          *displayCursor = ' '; // TM1638 non cancella la cifra, va impostato a blank
+          *displayCursor = ' ';     // il TM1638 non cancella la cifra precedente, va impostato a blank
           *(displayCursor + 1) = 0;
           if (userDigitPoint && *displayCursor == ' ') {
             *displayCursor = 0;
@@ -325,13 +337,21 @@ void calc() {
           if (displayCursor > display + TM_DISPLAY_SIZE) {
             if (displayBaseP > display) {
                 displayBaseP--;
+                if (displayBaseP > display && *displayBaseP == '.') {
+                  displayBaseP--;
+                }
+            }
+            // reset display overflow indicator ? 
+            uint8_t len = 0;
+            char *p = display;
+            while (*p != 0) {
+              if (isDigit(*p++)) len++; // escludere il punto, che è embedded nella cifra
+            }
+            if (len <= TM_DISPLAY_SIZE) {
+              tm.setLED(FUNCT_LED(7), 0);
             }
           } else {
             // reset display overflow indicator + display at home position
-            tm.setLED(FUNCT_LED(7), 0);
-            displayBaseP = display;
-          }
-          if (userDigitPoint && (displayCursor > display + TM_DISPLAY_SIZE)) {
             tm.setLED(FUNCT_LED(7), 0);
             displayBaseP = display;
           }
@@ -339,9 +359,12 @@ void calc() {
         }
         break;
       case '.':
-        if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
+        if (displayCursor >= display + DISPLAY_MAX_USER_LEN + userDigitPoint ? 1 : 0) break;
         if (!userDigitPoint) {
           userDigitPoint = true;
+          if (displayCursor == display) {
+            *(displayCursor++) = '0';       // un float che inizia per punto è preceduto dallo zero
+          }
           *(displayCursor++) = '.';
           *displayCursor = 0;
           if (displayCursor > display + TM_DISPLAY_SIZE) {
@@ -352,7 +375,8 @@ void calc() {
         }
         break;
       default:
-        if (displayCursor >= display + DISPLAY_MAX_USER_LEN) break;
+        if (displayCursor >= display + DISPLAY_MAX_USER_LEN + userDigitPoint ? 1 : 0) break;
+        if (!userDigitPoint && keymap[key] == '0' && *display == '0') break;  // una sola cifra zero prima del punto più a sinistra
         *(displayCursor++) = keymap[key];
         *displayCursor = 0;
         if (displayCursor > display + TM_DISPLAY_SIZE + userDigitPoint ? 1 : 0) {
@@ -378,12 +402,56 @@ void calc() {
   }
 }
 
+void calcWelcome() {
+  switch (calcWelcomeState) {
+    case 0:
+      tm.setLEDs(0);
+      tm.setLED(FUNCT_LED(0), 1);
+      tm.displayText("  CALC  ");
+      calcWelcomeState++;
+      break;
+    case 1:
+      clearDisplay();
+      displayResetZero();
+      calcWelcomeTask.disable();
+      runner.deleteTask(calcWelcomeTask);
+      calcWelcomeState = 0;
+      // calc start
+      calcTask.enable();
+      doubleTrimRightZeroes(x);
+      displayFloat();
+      break;
+  }  
+}
+
+void calcWelcomeOP() {
+  switch (calcWelcomeOPState) {
+    case '+':
+      tm.displayText("  ADD   ");
+      break;
+    case '-':
+      tm.displayText("  SUB   ");
+      break;
+    case '*':
+      tm.displayText("  MUL   ");
+      break;
+    case '/':
+      tm.displayText("  DIV   ");
+      break;
+    case '=':
+      tm.displayText(" ENTER  ");
+      break;
+    case 1:
+      clearDisplay();
+      calcWelcomeOPState = 0;
+      return;
+  }
+  calcWelcomeOPState++;  
+}
+
 void calcEnable() {
-  tm.setLEDs(0);
-  tm.setLED(FUNCT_LED(0), 1);
-  calcTask.enable();
-  doubleTrimRightZeroes(x);
-  displayFloat();
+  runner.addTask(calcWelcomeTask);
+  calcWelcomeTask.enable();
 }
 
 void calcDisable() {

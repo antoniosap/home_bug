@@ -39,7 +39,7 @@ LED 2                   |
 LED 3                   |
 LED 4                   |
 LED 5                   |
-LED 6                   |
+LED 6->CALC NEGATIVE    | l'indicatore ripete il segno meno davanti al float
 LED 7->CALC SCROLL      | fino a 16 cifre sul display da 8 cifre
 
 FUNCTIONS KEYS:
@@ -64,8 +64,9 @@ KEYPAD MAPPINGS:
  K00->0          K04->.           K08->del
 
 TODO
-mettere CALC 1 secondo all'avvio della funzione
-inserire un cursore _ lampeggiante
-inserire CHS cambio segno
+OK mettere CALC 1 secondo all'avvio della funzione
 inserire ENTER
 mettere ENTER 1 secondo all'avvio della funzione
+inserire le 4 operazioni con annuncements ADD SUB MUL DIV
+inserire un cursore _ lampeggiante
+inserire CHS cambio segno
