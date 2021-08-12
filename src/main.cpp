@@ -19,8 +19,19 @@
 
 #if DEBUG_FLOAT
 #define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
+#define PR_STACK()              { Serial.println("STACK:"); \
+                                  Serial.print("T:"); \
+                                  Serial.println(t); \
+                                  Serial.print("Z:"); \
+                                  Serial.println(z); \
+                                  Serial.print("Y:"); \
+                                  Serial.println(y); \
+                                  Serial.print("X:"); \
+                                  Serial.println(x); \
+                                }   
 #else
-#define PR(msg, value)          {}             
+#define PR(msg, value)          {}     
+#define PR_STACK()              {}         
 #endif
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
@@ -52,7 +63,7 @@ char    *displayCursor = display;
 uint8_t functionBtn = 0;
 uint8_t lastFunctionBtn = 0;
 
-#define FUNCT_LED(x)    (x)
+#define FUNCT_LED(number)    (number)
 
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
@@ -227,7 +238,7 @@ void doubleTrimRightZeroes(double value) {
   PR("F3:", display);
 }
 
-double stringToDouble() {
+double displayToRegister() {
   return p_strtod(display, NULL);
 }
 
@@ -285,25 +296,39 @@ void displayResetZero() {
 
 void calc() {
   switch (op) {
-    case ' ':
+    case 0:
       break;
     case '+':
+      PR_STACK();
       x += y; y = z; z = t; t = 0;
+      op = 0;
+      PR_STACK();
       break;
     case '-':
+      PR_STACK();
       x -= y; y = z; z = t; t = 0;
+      op = 0;
       break;
     case '*':
+      PR_STACK();
       x *= y; y = z; z = t; t = 0;
+      op = 0;
+      PR_STACK();
       break;
     case '/':
+      PR_STACK();
       x /= y; y = z; z = t; t = 0;
+      op = 0;
+      PR_STACK();
       break;
     case '=':
+      PR_STACK();
       t = z; z = y; y = x;
+      x = displayToRegister();
+      op = 0;
+      PR_STACK();
       break;      
   }
-  op = ' ';
 
 // KEYPAD MAPPINGS:
 //  K03->7          K07->8           K11->9
@@ -405,9 +430,9 @@ void calcWelcome() {
       runner.deleteTask(calcWelcomeTask);
       calcWelcomeState = 0;
       // calc start
-      calcTask.enable();
       doubleTrimRightZeroes(x);
       displayFloat();
+      calcTask.enable();
       PR("X:", x);
       break;
   }  
