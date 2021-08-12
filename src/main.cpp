@@ -9,6 +9,25 @@
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD            false
 #define DEBUG_FLOAT             true
+
+#if DEBUG_FLOAT
+#define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
+#define PR_STACK()              { Serial.println("STACK:"); \
+                                  Serial.print("T:"); \
+                                  Serial.println(t); \
+                                  Serial.print("Z:"); \
+                                  Serial.println(z); \
+                                  Serial.print("Y:"); \
+                                  Serial.println(y); \
+                                  Serial.print("X:"); \
+                                  Serial.println(x); \
+                                }   
+#else
+#define PR(msg, value)          {}     
+#define PR_STACK()              {}         
+#endif
+
+//-- CONFIGURATIONS -------------------------------------------------------------
 #define UART_ECHO               (0)
 #define UART_BAUDRATE           (115200)
 #define FLOAT_DECIMALS          (15)
@@ -16,6 +35,8 @@
 #define DISPLAY_USER_LEN        (TM_DISPLAY_SIZE * 2)
 #define DISPLAY_MAX_USER_LEN    (DISPLAY_USER_LEN)
 #define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 3)
+#define SINGLE_PRECISION_32        (9)
+#define SINGLE_PRECISION_32_FORMAT "%.9f"
 
 #if DEBUG_FLOAT
 #define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
@@ -234,9 +255,21 @@ void displayFloat() {
   tm.displayText(display);
 }
 
+void registerRound(double &value, const uint32_t &to) {
+  uint32_t places = 1, whole = *(&value);
+
+  for (uint32_t i = 0; i < to; i++) places *= 10;
+  value -= whole;           // leave decimals
+  value *= places;          // 0.1234 -> 123.4
+  value  = round(value);    // 123.4 -> 123
+  value /= places;          // 123 -> .123
+  value += whole;           // bring the whole value back
+}
+
 void registerToDisplay(double value) {
   PR("F1:", value);
-  snprintf(display, DISPLAY_BUFFER_LEN, "%.16f", value);
+  registerRound(value, SINGLE_PRECISION_32);
+  snprintf(display, DISPLAY_BUFFER_LEN, SINGLE_PRECISION_32_FORMAT, value);
   display[DISPLAY_TRUNC_LEN + 1] = 0;
   PR("F2:", display);
   trimDisplay();
@@ -492,11 +525,13 @@ void calcWelcomeOP() {
       tm.displayText(displayBaseP);
       calcWelcomeOPState = 0;
       calcWelcomeOPTask.disable();
+      calcTask.enable();
       break;
   }
 }
 
 void calcWelcomeOPEnable() {
+  calcTask.disable();
   calcWelcomeOPState = 0;
   runner.addTask(calcWelcomeOPTask);
   calcWelcomeOPTask.enable();

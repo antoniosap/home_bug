@@ -65,8 +65,8 @@ KEYPAD MAPPINGS:
 
 TODO
 OK mettere CALC 1 secondo all'avvio della funzione
-inserire ENTER
-mettere ENTER 1 secondo all'avvio della funzione
+OK inserire ENTER
+OK mettere ENTER 1 secondo all'avvio della funzione
 inserire le 4 operazioni con annuncements ADD SUB MUL DIV
 inserire un cursore _ lampeggiante
 inserire CHS cambio segno
