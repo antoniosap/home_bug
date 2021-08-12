@@ -162,6 +162,7 @@ void welcome() {
 };
 
 bool userDigitPoint = false;
+bool userOPcompleted = false;
 
 // cpp reference
 // https://en.cppreference.com/w/c/string/byte/strchr
@@ -219,17 +220,21 @@ void trimDisplay() {
 void displayFloat() {
   trimDisplay();
   PR("E:", display);
-  uint8_t len = strlen(display);
-  strcat(display, "        "); // TM_DISPLAY_SIZE
+  uint8_t len = 0;
+  char *p = display;
+  while (*p != 0) {
+    if (isDigit(*p++)) len++; // escludere il punto, che è embedded nella cifra
+  }
   if (len > TM_DISPLAY_SIZE) {
     tm.setLED(FUNCT_LED(7), 1);
   } else {
     tm.setLED(FUNCT_LED(7), 0);
   }
+  clearDisplay();
   tm.displayText(display);
 }
 
-void doubleTrimRightZeroes(double value) {
+void registerToDisplay(double value) {
   PR("F1:", value);
   snprintf(display, DISPLAY_BUFFER_LEN, "%.16f", value);
   display[DISPLAY_TRUNC_LEN + 1] = 0;
@@ -302,32 +307,46 @@ void calc() {
       PR_STACK();
       x += y; y = z; z = t; t = 0;
       op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
       PR_STACK();
-      break;
+      return;
     case '-':
       PR_STACK();
       x -= y; y = z; z = t; t = 0;
       op = 0;
-      break;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
+      PR_STACK();
+      return;
     case '*':
       PR_STACK();
       x *= y; y = z; z = t; t = 0;
       op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
       PR_STACK();
-      break;
+      return;
     case '/':
       PR_STACK();
       x /= y; y = z; z = t; t = 0;
       op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
       PR_STACK();
-      break;
+      return;
     case '=':
       PR_STACK();
       t = z; z = y; y = x;
-      x = displayToRegister();
       op = 0;
+      x = displayToRegister();
+      userOPcompleted = true;
       PR_STACK();
-      break;      
+      return;      
   }
 
 // KEYPAD MAPPINGS:
@@ -339,6 +358,11 @@ void calc() {
   if (key >= 0) {
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     PR("KEY:", keymap[key]);
+    if (userOPcompleted) {
+      userOPcompleted = false;
+      clearDisplay();
+      displayResetZero();
+    }
     switch (keymap[key]) {
       case 'D':
         if (displayCursor > display) {
@@ -430,7 +454,7 @@ void calcWelcome() {
       runner.deleteTask(calcWelcomeTask);
       calcWelcomeState = 0;
       // calc start
-      doubleTrimRightZeroes(x);
+      registerToDisplay(x);
       displayFloat();
       calcTask.enable();
       PR("X:", x);
