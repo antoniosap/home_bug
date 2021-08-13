@@ -176,10 +176,12 @@ bool userOPcompleted = false;
 void trimRightDisplay() {
   // trim decimal right zeroes
   PR("C:", display);
-  const char* decimalIndex = strchr(display, '.');
-  if (decimalIndex != NULL ) {
+  const char* decimalP = strchr(display, '.');
+  if (decimalP != 0 ) {
+    PR("FOUND:", decimalP);
     char *p = display + strlen(display) - 1;
-    while (p >= decimalIndex) {
+    while (p >= decimalP) {
+      PR("FOUND C:", *p);
       if (*p != '0') {
         if (*p == '.') {
           if (userDigitPoint) {
@@ -189,6 +191,8 @@ void trimRightDisplay() {
           *p = 0;
         }
         break;
+      } else {
+        *p = 0;
       }
       p--;
     }
@@ -317,46 +321,62 @@ void displayResetZero() {
   displayBaseP = display;
 }
 
+void pushStackRegister() {
+  t = z; z = y; y = x;
+}
+
+void popStackRegister() {
+   y = z; z = t;
+}
+
 void calc() {
   switch (op) {
     case 0:
       break;
-    case '+':  // pop
+    case '+':  // pop x op y
       PR_STACK();
+      pushStackRegister();
       x = displayToRegister();
-      x = y + x; y = z; z = t;
+      x = y + x;
+      popStackRegister();
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '-':  // pop
+    case '-':  // pop x op y
       PR_STACK();
+      pushStackRegister();
       x = displayToRegister();
-      x = y - x; y = z; z = t;
+      x = y - x;
+      popStackRegister();
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '*':  // pop
+    case '*':  // pop x op y
       PR_STACK();
+      pushStackRegister();
       x = displayToRegister();
-      x = y * x; y = z; z = t;
+      x = y * x;
+      popStackRegister();
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '/':  // pop
+    case '/':  // pop x op y
       PR_STACK();
+      pushStackRegister();
       PR("DIV DISPLAY:", display);
       x = displayToRegister();
       PR("DIV X:", x);
-      x = y / x; y = z; z = t;
+      x = y / x;
+      popStackRegister();
       op = 0;
       registerToDisplay(x);
       displayFloat();
@@ -366,7 +386,7 @@ void calc() {
     case '=': // push value
       PR_STACK();
       x = displayToRegister();
-      t = z; z = y; y = x;
+      pushStackRegister();
       op = 0;
       userOPcompleted = true;
       PR_STACK();
