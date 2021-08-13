@@ -21,6 +21,8 @@
                                   Serial.println(y); \
                                   Serial.print("X:"); \
                                   Serial.println(x); \
+                                  Serial.print("DISPLAY:"); \
+                                  Serial.println(display); \
                                 }   
 #else
 #define PR(msg, value)          {}     
@@ -37,23 +39,6 @@
 #define DISPLAY_BUFFER_LEN      (TM_DISPLAY_SIZE * 3)
 #define SINGLE_PRECISION_32        (9)
 #define SINGLE_PRECISION_32_FORMAT "%.9f"
-
-#if DEBUG_FLOAT
-#define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
-#define PR_STACK()              { Serial.println("STACK:"); \
-                                  Serial.print("T:"); \
-                                  Serial.println(t); \
-                                  Serial.print("Z:"); \
-                                  Serial.println(z); \
-                                  Serial.print("Y:"); \
-                                  Serial.println(y); \
-                                  Serial.print("X:"); \
-                                  Serial.println(x); \
-                                }   
-#else
-#define PR(msg, value)          {}     
-#define PR_STACK()              {}         
-#endif
 
 //--- TM 1638 leds & keys -------------------------------------------------------------------------------
 /*
@@ -336,47 +321,53 @@ void calc() {
   switch (op) {
     case 0:
       break;
-    case '+':
+    case '+':  // pop
       PR_STACK();
-      x += y; y = z; z = t; t = 0;
+      x = displayToRegister();
+      x = y + x; y = z; z = t;
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '-':
+    case '-':  // pop
       PR_STACK();
-      x -= y; y = z; z = t; t = 0;
+      x = displayToRegister();
+      x = y - x; y = z; z = t;
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '*':
+    case '*':  // pop
       PR_STACK();
-      x *= y; y = z; z = t; t = 0;
+      x = displayToRegister();
+      x = y * x; y = z; z = t;
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '/':
+    case '/':  // pop
       PR_STACK();
-      x /= y; y = z; z = t; t = 0;
+      PR("DIV DISPLAY:", display);
+      x = displayToRegister();
+      PR("DIV X:", x);
+      x = y / x; y = z; z = t;
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
       PR_STACK();
       return;
-    case '=':
+    case '=': // push value
       PR_STACK();
+      x = displayToRegister();
       t = z; z = y; y = x;
       op = 0;
-      x = displayToRegister();
       userOPcompleted = true;
       PR_STACK();
       return;      
