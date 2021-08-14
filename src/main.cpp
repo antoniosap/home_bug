@@ -335,8 +335,7 @@ void calc() {
       break;
     case '+':  // pop x op y
       PR_STACK();
-      x = displayToRegister();
-      x = y + x;
+      x = y + displayToRegister();
       popStackRegister();
       op = 0;
       registerToDisplay(x);
@@ -346,8 +345,7 @@ void calc() {
       return;
     case '-':  // pop x op y
       PR_STACK();
-      x = displayToRegister();
-      x = y - x;
+      x = y - displayToRegister();
       popStackRegister();
       op = 0;
       registerToDisplay(x);
@@ -357,8 +355,7 @@ void calc() {
       return;
     case '*':  // pop x op y
       PR_STACK();
-      x = displayToRegister();
-      x = y * x;
+      x = y * displayToRegister();
       popStackRegister();
       op = 0;
       registerToDisplay(x);
@@ -368,10 +365,7 @@ void calc() {
       return;
     case '/':  // pop x op y
       PR_STACK();
-      PR("DIV DISPLAY:", display);
-      x = displayToRegister();
-      PR("DIV X:", x);
-      x = y / x;
+      x = y / displayToRegister();
       popStackRegister();
       op = 0;
       registerToDisplay(x);
@@ -381,6 +375,7 @@ void calc() {
       return;
     case '=': // push value
       PR_STACK();
+      pushStackRegister();
       x = displayToRegister();
       pushStackRegister();
       op = 0;
