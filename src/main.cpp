@@ -8,11 +8,18 @@
 
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD            false
-#define DEBUG_FLOAT             true
+#define DEBUG_FLOAT             false
+#define DEBUG_STACK             true
 
 #if DEBUG_FLOAT
 #define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
-#define PR_STACK()              { Serial.println("STACK:"); \
+#else
+#define PR(msg, value)          {}           
+#endif
+
+#if DEBUG_STACK
+#define PR_STACK(msg)           { Serial.print("STACK:"); \
+                                  Serial.println(msg); \
                                   Serial.print("T:"); \
                                   Serial.println(t); \
                                   Serial.print("Z:"); \
@@ -21,11 +28,11 @@
                                   Serial.println(y); \
                                   Serial.print("X:"); \
                                   Serial.println(x); \
-                                  Serial.print("DISPLAY:"); \
+                                  Serial.print("D:"); \
                                   Serial.println(display); \
-                                }   
-#else
-#define PR(msg, value)          {}     
+                                  Serial.print("U:"); \
+                                  Serial.println(userOPcompleted); } 
+#else   
 #define PR_STACK()              {}         
 #endif
 
@@ -136,7 +143,7 @@ int8_t keypadBtnTouched();
 Task calcTask(100, TASK_FOREVER, &calc);
 Task calcWelcomeTask(1500, TASK_FOREVER, &calcWelcome);
 void calcWelcomeOP();
-Task calcWelcomeOPTask(1500, TASK_FOREVER, &calcWelcomeOP);
+Task calcWelcomeOPTask(1000, TASK_FOREVER, &calcWelcomeOP);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
@@ -331,56 +338,77 @@ void popStackRegister() {
 
 void calc() {
   switch (op) {
-    case 0:
-      break;
-    case '+':  // pop x op y
-      PR_STACK();
-      x = y + displayToRegister();
-      popStackRegister();
+    case '+':
+      if (userOPcompleted) {
+        popStackRegister();
+      } else {
+        x = displayToRegister();
+      }
+      PR_STACK("E");
+      x = y + x;
       op = 0;
       registerToDisplay(x);
       displayFloat();
       userOPcompleted = true;
-      PR_STACK();
-      return;
-    case '-':  // pop x op y
-      PR_STACK();
-      x = y - displayToRegister();
       popStackRegister();
-      op = 0;
-      registerToDisplay(x);
-      displayFloat();
-      userOPcompleted = true;
-      PR_STACK();
-      return;
-    case '*':  // pop x op y
-      PR_STACK();
-      x = y * displayToRegister();
-      popStackRegister();
-      op = 0;
-      registerToDisplay(x);
-      displayFloat();
-      userOPcompleted = true;
-      PR_STACK();
-      return;
-    case '/':  // pop x op y
-      PR_STACK();
-      x = y / displayToRegister();
-      popStackRegister();
-      op = 0;
-      registerToDisplay(x);
-      displayFloat();
-      userOPcompleted = true;
-      PR_STACK();
-      return;
-    case '=': // push value
-      PR_STACK();
       pushStackRegister();
+      PR_STACK("U");
+      return;
+    case '-':
+      if (userOPcompleted) {
+        popStackRegister();
+      } else {
+        x = displayToRegister();
+      }
+      PR_STACK("E");
+      x = y - x;
+      op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
+      popStackRegister();
+      pushStackRegister();
+      PR_STACK("U");
+      return;
+    case '*':
+      if (userOPcompleted) {
+        popStackRegister();
+      } else {
+        x = displayToRegister();
+      }
+      PR_STACK("E");
+      x = y * x;
+      op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
+      popStackRegister();
+      pushStackRegister();
+      PR_STACK("U");
+      return;
+    case '/':
+      if (userOPcompleted) {
+        popStackRegister();
+      } else {
+        x = displayToRegister();
+      }
+      PR_STACK("E");
+      x = y / x;
+      op = 0;
+      registerToDisplay(x);
+      displayFloat();
+      userOPcompleted = true;
+      popStackRegister();
+      pushStackRegister();
+      PR_STACK("U");
+      return;
+    case '=': // ENTER push button
       x = displayToRegister();
+      PR_STACK("E");
       pushStackRegister();
       op = 0;
       userOPcompleted = true;
-      PR_STACK();
+      PR_STACK("U");
       return;      
   }
 
