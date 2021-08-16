@@ -112,14 +112,12 @@ uint16_t lasttouched = 0;
 uint16_t currtouched = 0;
 
 //-------------------------------------------------------------------------------------------------------
-
-//-------------------------------------------------------------------------------------------------------
-// #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#include <ESP8266WiFi.h>          // https://github.com/esp8266/Arduino
 
 // //needed for library
 // #include <DNSServer.h>
 // #include <ESP8266WebServer.h>
-// #include "WiFiManager.h"          //https://github.com/tzapu/WiFiManager
+// #include "WiFiManager.h"          // https://github.com/tzapu/WiFiManager
 
 // void configModeCallback (WiFiManager *myWiFiManager) {
 //   Serial.println("Entered config mode");
@@ -127,6 +125,18 @@ uint16_t currtouched = 0;
 //   //if you used auto generated SSID, print it
 //   Serial.println(myWiFiManager->getConfigPortalSSID());
 // }
+
+//--- NTP CLIENT ----------------------------------------------------------------------------------------
+#include <credentials.h> 
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+WiFiUDP ntpUDP;
+
+// You can specify the time server pool and the offset (in seconds, can be
+// changed later with setTimeOffset() ). Additionaly you can specify the
+// update interval (in milliseconds, can be changed using setUpdateInterval() ).
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 1000 * 60 * 60 * 6L);
 
 //-------------------------------------------------------------------------------------------------------
 #include <TaskScheduler.h>
@@ -286,6 +296,10 @@ void wallClock() {
   if (clockDisplay) {
     snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
     tm.displayText(display);
+  }
+  // NTP clock
+  if (timeClient.isTimeSet()) {
+    // Serial.println(timeClient.getFormattedTime());
   }
 
   clockIndicator = !clockIndicator;
@@ -654,6 +668,13 @@ void setup() {
   cap.setThresholds(70, 100);
   ESP.wdtEnable(1000);
 
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  timeClient.begin();
+
   tm.displayBegin();
   displayResetZero();
   
@@ -669,6 +690,7 @@ void setup() {
 void loop() {
   ESP.wdtFeed();
   runner.execute();
+  timeClient.update();
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {
