@@ -71,3 +71,5 @@ OK inserire le 4 operazioni con annuncements ADD SUB MUL DIV
 impostare S3 = scroll page display
 inserire un cursore _ lampeggiante
 inserire CHS cambio segno
+impostare il time zone  + / - 1 ora
+impostare il wifi come un task

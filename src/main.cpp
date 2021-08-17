@@ -126,17 +126,23 @@ uint16_t currtouched = 0;
 //   Serial.println(myWiFiManager->getConfigPortalSSID());
 // }
 
+uint8_t wifiCounter = 10;
+
 //--- NTP CLIENT ----------------------------------------------------------------------------------------
 #include <credentials.h> 
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+
+#define INTERVAL_HOURS(h)   (1000L * 60 * 60 * h)
+#define NTP_OFFSET          (3600 * 2)
+#define NTP_REFRESH_HOURS   INTERVAL_HOURS(2)
 
 WiFiUDP ntpUDP;
 
 // You can specify the time server pool and the offset (in seconds, can be
 // changed later with setTimeOffset() ). Additionaly you can specify the
 // update interval (in milliseconds, can be changed using setUpdateInterval() ).
-NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 1000 * 60 * 60 * 6L);
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", NTP_OFFSET, INTERVAL_HOURS(6));
 
 //-------------------------------------------------------------------------------------------------------
 #include <TaskScheduler.h>
@@ -146,6 +152,8 @@ Task welcomeTask(3000, 4, &welcome);
 void wallClock();
 void wallClockEnable();
 Task clockTask(1000, TASK_FOREVER, &wallClock);
+void ntpRefreshClock();
+Task ntpRefreshTask(NTP_REFRESH_HOURS, TASK_FOREVER, &ntpRefreshClock);
 void calc();
 void calcEnable();
 void calcWelcome();
@@ -292,14 +300,19 @@ uint8_t seconds = 0;
 bool clockIndicator = false;
 bool clockDisplay = false;
 
+void ntpRefreshClock() {
+  if (WiFi.status() == WL_CONNECTED && timeClient.isTimeSet()) {
+    Serial.println("I:NTP REFRESH");
+    hour = timeClient.getHours();
+    minutes = timeClient.getMinutes();
+    seconds = timeClient.getSeconds();
+  }
+}
+
 void wallClock() {
   if (clockDisplay) {
     snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
     tm.displayText(display);
-  }
-  // NTP clock
-  if (timeClient.isTimeSet()) {
-    // Serial.println(timeClient.getFormattedTime());
   }
 
   clockIndicator = !clockIndicator;
@@ -668,12 +681,16 @@ void setup() {
   cap.setThresholds(70, 100);
   ESP.wdtEnable(1000);
 
+  Serial.print("I:WIFI");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (wifiCounter-- > 0 && WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  Serial.println();
   timeClient.begin();
+  // timeClient.forceUpdate();
+  ntpRefreshClock();
 
   tm.displayBegin();
   displayResetZero();
@@ -682,6 +699,8 @@ void setup() {
   runner.addTask(welcomeTask);
   runner.addTask(clockTask);
   runner.addTask(calcTask);
+  runner.addTask(ntpRefreshTask);
+  ntpRefreshTask.enable();
   welcomeTask.enable();
   clockTask.enable();
 }
