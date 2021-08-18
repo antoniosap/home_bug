@@ -334,7 +334,7 @@ void wallClock() {
   }
 
   if (((minutes == 59 || minutes == 29) && seconds >= 55) ||
-      ((minutes == 0 || minutes == 31) && seconds <= 5)) {
+      ((minutes == 0 || minutes == 30) && seconds <= 5)) {
     clockExtended = true;
   } else {
     clockExtended = false;
