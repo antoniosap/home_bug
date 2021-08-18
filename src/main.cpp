@@ -299,6 +299,7 @@ uint8_t minutes = 0;
 uint8_t seconds = 0;
 bool clockIndicator = false;
 bool clockDisplay = false;
+bool clockExtended = false;
 
 void ntpRefreshClock() {
   if (WiFi.status() == WL_CONNECTED && timeClient.isTimeSet()) {
@@ -311,7 +312,13 @@ void ntpRefreshClock() {
 
 void wallClock() {
   if (clockDisplay) {
-    snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d", hour, clockIndicator ? ":" : "-", minutes); 
+    if (clockExtended) {
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d",\
+                hour, clockIndicator ? ":" : "-", minutes, \
+                clockIndicator ? ":" : "-", seconds);
+    } else {
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", hour, clockIndicator ? ":" : "-", minutes);
+    }
     tm.displayText(display);
   }
 
@@ -324,6 +331,13 @@ void wallClock() {
         hour = 0;
       }
     }
+  }
+
+  if (((minutes == 59 || minutes == 29) && seconds >= 55) ||
+      ((minutes == 0 || minutes == 31) && seconds <= 5)) {
+    clockExtended = true;
+  } else {
+    clockExtended = false;
   }
 };
 
@@ -689,7 +703,7 @@ void setup() {
   }
   Serial.println();
   timeClient.begin();
-  // timeClient.forceUpdate();
+  timeClient.forceUpdate();
   ntpRefreshClock();
 
   tm.displayBegin();
