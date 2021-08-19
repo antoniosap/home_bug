@@ -22,11 +22,13 @@ pin 3: SCL - D1
 pin 4: SDA - D2
 pin 5: gnd
 
+buzzer: D0 con R 660 OHM serie = 0.005 mA
+
 CPU:
 attenzione: lasciare libero D3 che serve per il flash programming
 attenzione: va disconnesso D3 dal carico se si riprogramma via USB
-attenzione: il Wemos D1 mini a il D8 collegato a GND con un 10k
-attenzione: il Wemos D1 mini a il D3 / D4 collegato a 3V3 con un 10k
+attenzione: il Wemos D1 mini ha il D8 collegato a GND con un 10k
+attenzione: il Wemos D1 mini ha il D3 / D4 collegato a 3V3 con un 10k
 
 alimentazione USB
 
@@ -43,7 +45,7 @@ LED 6->CALC NEGATIVE    | l'indicatore ripete il segno meno davanti al float
 LED 7->CALC SCROLL      | fino a 16 cifre (ma solo con 64 bit) sul display da 8 cifre, oppure solo 9 decimali su 32 bit
 
 FUNCTIONS KEYS:
-MENU BASE               | RPN CALC MODE          |
+WALL CLOCK              | RPN CALC MODE          |
 ________________________|________________________|
 S-KEY 0->CALC           | 0->WALL CLOCK
 S-KEY 1->NETWORK        | CHS change sign
@@ -52,7 +54,7 @@ S-KEY 3                 | ADD +
 S-KEY 4                 | SUB -
 S-KEY 5                 | MUL *
 S-KEY 6                 | DIV /
-S-KEY 7                 | ENTER =
+S-KEY 7->CLOCK DAY 3sec | ENTER =
 
 7 SEGMENT DISPLAY
 12345678

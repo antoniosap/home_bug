@@ -300,6 +300,7 @@ uint8_t seconds = 0;
 bool clockIndicator = false;
 bool clockDisplay = false;
 bool clockExtended = false;
+uint8_t clockDate = 0;
 
 void ntpRefreshClock() {
   if (WiFi.status() == WL_CONNECTED && timeClient.isTimeSet()) {
@@ -312,7 +313,10 @@ void ntpRefreshClock() {
 
 void wallClock() {
   if (clockDisplay) {
-    if (clockExtended) {
+    if (--clockDate > 0) {
+      // display calendar
+
+    } else if (clockExtended) {
       snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d",\
                 hour, clockIndicator ? ":" : "-", minutes, \
                 clockIndicator ? ":" : "-", seconds);
@@ -773,6 +777,8 @@ void loop() {
         if (calcTask.isEnabled()) {
           op = '='; // ENTER
           calcWelcomeOPEnable();
+        } else if (clockDisplay) {
+          clockDate = 4;
         }
         break;
     }
