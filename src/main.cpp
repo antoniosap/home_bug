@@ -130,19 +130,15 @@ uint8_t wifiCounter = 10;
 
 //--- NTP CLIENT ----------------------------------------------------------------------------------------
 #include <credentials.h> 
-#include <NTPClient.h>
-#include <WiFiUdp.h>
+#include <ezTime.h>
 
-#define INTERVAL_HOURS(h)   (1000L * 60 * 60 * h)
-#define NTP_OFFSET          (3600 * 2)
-#define NTP_REFRESH_HOURS   INTERVAL_HOURS(2)
+#define INTERVAL_HOURS_MS(h)  (1000L * 60 * 60 * h)
+#define INTERVAL_HOURS_S(h)   (60 * 60 * h)
+#define NTP_OFFSET            (3600 * 2)
+#define NTP_REFRESH_HOURS     INTERVAL_HOURS_MS(2)
+#define NTP_SERVER_LOCAL      "europe.pool.ntp.org"
 
-WiFiUDP ntpUDP;
-
-// You can specify the time server pool and the offset (in seconds, can be
-// changed later with setTimeOffset() ). Additionaly you can specify the
-// update interval (in milliseconds, can be changed using setUpdateInterval() ).
-NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", NTP_OFFSET, INTERVAL_HOURS(6));
+Timezone myTZ;
 
 //-------------------------------------------------------------------------------------------------------
 #include <TaskScheduler.h>
@@ -294,51 +290,52 @@ double displayToRegister() {
   return p_strtod(display, NULL);
 }
 
-uint8_t hour = 0;
-uint8_t minutes = 0;
-uint8_t seconds = 0;
+int hh = 0;
+int mm = 0;
+int ss = 0;
 bool clockIndicator = false;
 bool clockDisplay = false;
 bool clockExtended = false;
 uint8_t clockDate = 0;
 
 void ntpRefreshClock() {
-  if (WiFi.status() == WL_CONNECTED && timeClient.isTimeSet()) {
+  if (WiFi.status() == WL_CONNECTED && ezt::timeStatus() == timeSet) {
     Serial.println("I:NTP REFRESH");
-    hour = timeClient.getHours();
-    minutes = timeClient.getMinutes();
-    seconds = timeClient.getSeconds();
+    hh = myTZ.hour();
+    mm = myTZ.minute();
+    ss = myTZ.second();
   }
 }
 
 void wallClock() {
   if (clockDisplay) {
-    if (--clockDate > 0) {
-      // display calendar
-
-    } else if (clockExtended) {
+    //if (--clockDate > 0) {
+    //  // display calendar
+    //
+    //} else 
+    if (clockExtended) {
       snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d",\
-                hour, clockIndicator ? ":" : "-", minutes, \
-                clockIndicator ? ":" : "-", seconds);
+                hh, clockIndicator ? ":" : "-", mm, \
+                clockIndicator ? ":" : "-", ss);
     } else {
-      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", hour, clockIndicator ? ":" : "-", minutes);
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", hh, clockIndicator ? ":" : "-", mm);
     }
     tm.displayText(display);
   }
 
   clockIndicator = !clockIndicator;
-  if (++seconds > 59) {
-    seconds = 0;
-    if (++minutes > 59) {
-      minutes = 0;
-      if (++hour > 23) {
-        hour = 0;
+  if (++ss > 59) {
+    ss = 0;
+    if (++mm > 59) {
+      mm = 0;
+      if (++hh > 23) {
+        hh = 0;
       }
     }
   }
 
-  if (((minutes == 59 || minutes == 29) && seconds >= 55) ||
-      ((minutes == 0 || minutes == 30) && seconds <= 5)) {
+  if (((mm == 59 || mm == 29) && ss >= 55) ||
+      ((mm == 0 || mm == 30) && ss <= 5)) {
     clockExtended = true;
   } else {
     clockExtended = false;
@@ -706,9 +703,14 @@ void setup() {
     Serial.print(".");
   }
   Serial.println();
-  timeClient.begin();
-  timeClient.forceUpdate();
-  ntpRefreshClock();
+  // NTP begin
+  myTZ.setLocation("Europe/Rome");
+  ezt::setDebug(INFO);
+  ezt::setServer(NTP_SERVER_LOCAL);
+  ezt::setInterval(INTERVAL_HOURS_S(6));
+  ezt::waitForSync(20);
+  //ntpRefreshClock();
+  // NTP end
 
   tm.displayBegin();
   displayResetZero();
@@ -727,7 +729,7 @@ void setup() {
 void loop() {
   ESP.wdtFeed();
   runner.execute();
-  timeClient.update();
+  ezt::events();
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {
