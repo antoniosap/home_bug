@@ -179,7 +179,7 @@ void welcome() {
       welcomeState = 0;
     }
   } else if (welcomeState == 2) {
-    tm.displayText("20210627");
+    tm.displayText("2021.06.27");
     welcomeState = 0;
   }
   if (welcomeTask.isLastIteration()) {
@@ -298,6 +298,9 @@ bool clockDisplay = false;
 bool clockExtended = false;
 uint8_t clockDate = 0;
 
+const char *monthc[] = { "GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC" };
+const char *dayc[]   = { "DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB" };
+
 void ntpRefreshClock() {
   if (WiFi.status() == WL_CONNECTED && ezt::timeStatus() == timeSet) {
     Serial.println("I:NTP REFRESH");
@@ -309,11 +312,14 @@ void ntpRefreshClock() {
 
 void wallClock() {
   if (clockDisplay) {
-    //if (--clockDate > 0) {
-    //  // display calendar
-    //
-    //} else 
-    if (clockExtended) {
+    if (clockDate > 0) {
+      // display calendar
+      clockDate--;
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d.", myTZ.day());
+      strcat(display, monthc[myTZ.month()-1]);
+      strcat(display, ".");
+      strcat(display, dayc[myTZ.weekday()-1]);
+    } else if (clockExtended) {
       snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d",\
                 hh, clockIndicator ? ":" : "-", mm, \
                 clockIndicator ? ":" : "-", ss);
@@ -779,7 +785,7 @@ void loop() {
         if (calcTask.isEnabled()) {
           op = '='; // ENTER
           calcWelcomeOPEnable();
-        } else if (clockDisplay) {
+        } else {
           clockDate = 4;
         }
         break;
