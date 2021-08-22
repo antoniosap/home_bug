@@ -315,16 +315,18 @@ void wallClock() {
     if (clockDate > 0) {
       // display calendar
       clockDate--;
-      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d.", myTZ.day());
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d", myTZ.day());
+      if (clockIndicator) strcat(display, ".");
       strcat(display, monthc[myTZ.month()-1]);
-      strcat(display, ".");
+      if (clockIndicator) strcat(display, ".");
       strcat(display, dayc[myTZ.weekday()-1]);
     } else if (clockExtended) {
-      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d",\
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d%1s%02d", \
                 hh, clockIndicator ? ":" : "-", mm, \
                 clockIndicator ? ":" : "-", ss);
     } else {
-      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", hh, clockIndicator ? ":" : "-", mm);
+      snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", \
+                hh, clockIndicator ? ":" : "-", mm);
     }
     tm.displayText(display);
   }
