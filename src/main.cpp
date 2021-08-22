@@ -140,6 +140,50 @@ uint8_t wifiCounter = 10;
 
 Timezone myTZ;
 
+//--- MQTT CLIENT ---------------------------------------------------------------------------------------
+#include <PubSubClient.h>
+
+#define MQTT_SERVER           "192.168.147.1"
+#define MQTT_MSG_BUFFER_SIZE	(50)
+
+WiFiClient   mqttWifiClient;
+PubSubClient mqttClient(mqttWifiClient);
+char mqttMsg[MQTT_MSG_BUFFER_SIZE];
+
+// MQTT examples:
+// mosquitto_sub -h 192.168.147.1 -t outTopic
+// mosquitto_pub -h 192.168.147.1 -t inTopic -m "antonioooo"
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("I:MQTT:RX [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (unsigned int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
+void mqttConnect() {
+  if (!mqttClient.connected()) {
+    Serial.println("I:MQTT connection...");
+    // Create a random client ID
+    String clientId = "home-bug-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (mqttClient.connect(clientId.c_str())) {
+      Serial.println("I:MQTT connected");
+      // Once connected, publish an announcement...
+      mqttClient.publish("outTopic", "hello world");
+      // ... and resubscribe
+      mqttClient.subscribe("inTopic");
+    } else {
+      Serial.print("I:MQTT failed, rc=");
+      Serial.print(mqttClient.state());
+    }
+  }
+}
+
 //-------------------------------------------------------------------------------------------------------
 #include <TaskScheduler.h>
 
@@ -158,6 +202,8 @@ Task calcTask(100, TASK_FOREVER, &calc);
 Task calcWelcomeTask(1500, TASK_FOREVER, &calcWelcome);
 void calcWelcomeOP();
 Task calcWelcomeOPTask(1000, TASK_FOREVER, &calcWelcomeOP);
+void mqttConnect();
+Task mqttTask(5000, TASK_FOREVER, &mqttConnect);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
@@ -710,15 +756,20 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-  Serial.println();
+  Serial.println(WiFi.localIP());
   // NTP begin
   myTZ.setLocation("Europe/Rome");
   ezt::setDebug(INFO);
   ezt::setServer(NTP_SERVER_LOCAL);
   ezt::setInterval(INTERVAL_HOURS_S(6));
   ezt::waitForSync(20);
-  //ntpRefreshClock();
+  // ntpRefreshClock();
   // NTP end
+
+  // MQTT begin
+  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setCallback(mqttCallback);
+  // MQTT end
 
   tm.displayBegin();
   displayResetZero();
@@ -728,9 +779,11 @@ void setup() {
   runner.addTask(clockTask);
   runner.addTask(calcTask);
   runner.addTask(ntpRefreshTask);
+  runner.addTask(mqttTask);
   ntpRefreshTask.enable();
   welcomeTask.enable();
   clockTask.enable();
+  mqttTask.enable();
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -738,6 +791,7 @@ void loop() {
   ESP.wdtFeed();
   runner.execute();
   ezt::events();
+  mqttClient.loop();
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {
