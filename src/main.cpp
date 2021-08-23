@@ -142,22 +142,27 @@ Timezone myTZ;
 
 //--- MQTT CLIENT ---------------------------------------------------------------------------------------
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 #define MQTT_SERVER           "192.168.147.1"
 #define MQTT_MSG_BUFFER_SIZE	(50)
+#define MQTT_TOPIC_KEYBOARD   "home_bug_keyboard"
+#define MQTT_TOPIC_DISPLAY    "home_bug_display"
 
 WiFiClient   mqttWifiClient;
 PubSubClient mqttClient(mqttWifiClient);
 char mqttMsg[MQTT_MSG_BUFFER_SIZE];
+StaticJsonDocument<256> doc;
 
-// MQTT examples:
-// mosquitto_sub -h 192.168.147.1 -t outTopic
-// mosquitto_pub -h 192.168.147.1 -t inTopic -m "antonioooo"
+// MQTT client examples:
+// mosquitto_sub -h 192.168.147.1 -t home_bug_keyboard
+// result: {"key":"B0"} ... {"key":"B7"} ... {"key":"0"} ... 0-->9 . D
+// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m "antonioooo"
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("I:MQTT:RX [");
+  Serial.print("I:MQTT:RX:T:");
   Serial.print(topic);
-  Serial.print("] ");
+  Serial.print(":");
   for (unsigned int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
@@ -174,12 +179,12 @@ void mqttConnect() {
     if (mqttClient.connect(clientId.c_str())) {
       Serial.println("I:MQTT connected");
       // Once connected, publish an announcement...
-      mqttClient.publish("outTopic", "hello world");
+      //mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      mqttClient.subscribe("inTopic");
+      //mqttClient.subscribe("inTopic");
     } else {
-      Serial.print("I:MQTT failed, rc=");
-      Serial.print(mqttClient.state());
+      Serial.print("E:MQTT failed, rc=");
+      Serial.println(mqttClient.state());
     }
   }
 }
@@ -517,6 +522,12 @@ void calc() {
   if (key >= 0) {
     const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     PR("KEY:", keymap[key]);
+    // MQTT publish
+    char bts[] = {keymap[key], 0};
+    doc["key"] = bts;
+    serializeJson(doc, mqttMsg);
+    mqttClient.publish(MQTT_TOPIC_KEYBOARD, mqttMsg);
+    //
     if (userOPcompleted) {
       userOPcompleted = false;
       clearDisplay();
@@ -795,6 +806,12 @@ void loop() {
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {
+    // MQTT publish
+    char bts[] = {'B', (char)('0' + btn), 0};
+    doc["key"] = bts;
+    serializeJson(doc, mqttMsg);
+    mqttClient.publish(MQTT_TOPIC_KEYBOARD, mqttMsg);
+    //
     switch (btn) {
       case 0:
         if (calcTask.isEnabled()) {
