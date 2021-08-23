@@ -2,6 +2,7 @@
 //-------------------------------------------------------------------------------------------------------
 */
 #include <Arduino.h>
+#include <EEPROM.h>
 // https://github.com/arduino/ArduinoCore-avr/blob/master/cores/arduino/WString.cpp
 // #include <string>
 #include "strtod.h"
@@ -151,22 +152,32 @@ Timezone myTZ;
 
 WiFiClient   mqttWifiClient;
 PubSubClient mqttClient(mqttWifiClient);
-char mqttMsg[MQTT_MSG_BUFFER_SIZE];
+char mqttMsg[MQTT_MSG_BUFFER_SIZE + 1];
 StaticJsonDocument<256> doc;
+char mqttRXMsg[MQTT_MSG_BUFFER_SIZE + 1];
+uint8_t mqttRXSeconds;
 
 // MQTT client examples:
 // mosquitto_sub -h 192.168.147.1 -t home_bug_keyboard
 // result: {"key":"B0"} ... {"key":"B7"} ... {"key":"0"} ... 0-->9 . D
-// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m "antonioooo"
+// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m "{"msg" : "antonioooo", "sec": 60}"
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("I:MQTT:RX:T:");
   Serial.print(topic);
   Serial.print(":");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  if (!strcmp(topic, MQTT_TOPIC_DISPLAY)) {
+    memcpy(mqttMsg, payload, length < MQTT_MSG_BUFFER_SIZE ? length : MQTT_MSG_BUFFER_SIZE);
+    *(mqttMsg + length) = 0;
+    DeserializationError err = deserializeJson(doc, mqttMsg);
+    if (err == DeserializationError::Ok) {
+      strcpy(mqttRXMsg, doc["msg"]);
+      mqttRXSeconds = doc["sec"];
+    } else {
+      Serial.print("E:JSON:");
+      Serial.println(err.f_str());
+    }
   }
-  Serial.println();
 }
 
 void mqttConnect() {
@@ -181,7 +192,7 @@ void mqttConnect() {
       // Once connected, publish an announcement...
       //mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      //mqttClient.subscribe("inTopic");
+      mqttClient.subscribe(MQTT_TOPIC_DISPLAY);
     } else {
       Serial.print("E:MQTT failed, rc=");
       Serial.println(mqttClient.state());
