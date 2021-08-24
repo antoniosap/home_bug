@@ -65,6 +65,12 @@ KEYPAD MAPPINGS:
  K01->1          K05->2           K09->3
  K00->0          K04->.           K08->del
 
+MQTT client examples:
+mosquitto_sub -h 192.168.147.1 -t home_bug_keyboard
+result: {"key":"B0"} ... {"key":"B7"} ... {"key":"0"} ... 0-->9 . D
+mosquitto_pub -h 192.168.147.1 -t home_bug_display -m '{"msg" : "antonioooo", "sec": 60}'
+mosquitto_pub -h 192.168.147.1 -t home_bug_display -m '{"msg" : "PIOGGIA1234567890123", "sec": 25}'
+
 TODO
 OK mettere CALC 1 secondo all'avvio della funzione
 OK inserire ENTER
@@ -76,4 +82,4 @@ inserire CHS cambio segno
 impostare il time zone  + / - 1 ora
 impostare il wifi come un task
 qualche volta l ntp non aggiorna all'accensione
-impostare un MQTT che ritrasmette i buttons e riceve il display
+OK impostare un MQTT che ritrasmette i buttons e riceve il display

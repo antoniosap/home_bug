@@ -10,7 +10,7 @@
 //-- DEBUG ---------------------------------------------------------------------
 #define DEBUG_KEYPAD            false
 #define DEBUG_FLOAT             false
-#define DEBUG_STACK             true
+#define DEBUG_STACK             false
 
 #if DEBUG_FLOAT
 #define PR(msg, value)          { Serial.print(msg); Serial.print(value); Serial.println('*'); }
@@ -34,7 +34,7 @@
                                   Serial.print("U:"); \
                                   Serial.println(userOPcompleted); } 
 #else   
-#define PR_STACK()              {}         
+#define PR_STACK(msg)              {}         
 #endif
 
 //-- CONFIGURATIONS -------------------------------------------------------------
@@ -78,6 +78,8 @@ uint8_t functionBtn = 0;
 uint8_t lastFunctionBtn = 0;
 
 #define FUNCT_LED(number)    (number)
+
+const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
 
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
@@ -155,12 +157,30 @@ PubSubClient mqttClient(mqttWifiClient);
 char mqttMsg[MQTT_MSG_BUFFER_SIZE + 1];
 StaticJsonDocument<256> doc;
 char mqttRXMsg[MQTT_MSG_BUFFER_SIZE + 1];
-uint8_t mqttRXSeconds;
+char *mqttRXMsgP = mqttRXMsg;
+int mqttRXSeconds = 0;
+
+void keyPublish(int8_t key) {
+  // KEYPAD MAPPINGS:
+  //  K3->7          K7->8           K11->9
+  //  K2->4          K6->5           K10->6
+  //  K1->1          K5->2           K9->3
+  //  K0->0          K4->.           K8->del
+  if (key >= 0) {
+    // MQTT publish
+    char bts[] = {keymap[key], 0};
+    doc["key"] = bts;
+    serializeJson(doc, mqttMsg);
+    mqttClient.publish(MQTT_TOPIC_KEYBOARD, mqttMsg);
+    //
+  }
+}
 
 // MQTT client examples:
 // mosquitto_sub -h 192.168.147.1 -t home_bug_keyboard
 // result: {"key":"B0"} ... {"key":"B7"} ... {"key":"0"} ... 0-->9 . D
-// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m "{"msg" : "antonioooo", "sec": 60}"
+// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m '{"msg" : "antonioooo", "sec": 60}'
+// mosquitto_pub -h 192.168.147.1 -t home_bug_display -m '{"msg" : "PIOGGIA1234567890123", "sec": 25}'
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("I:MQTT:RX:T:");
@@ -173,6 +193,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (err == DeserializationError::Ok) {
       strcpy(mqttRXMsg, doc["msg"]);
       mqttRXSeconds = doc["sec"];
+      mqttRXMsgP = mqttRXMsg;
+      Serial.print("I:MQTT:msg:"); Serial.println(mqttRXMsg);
+      Serial.print("I:MQTT:sec:"); Serial.println(mqttRXSeconds);
     } else {
       Serial.print("E:JSON:");
       Serial.println(err.f_str());
@@ -374,6 +397,19 @@ void ntpRefreshClock() {
 
 void wallClock() {
   if (clockDisplay) {
+    // MQTT message, request display
+    if (--mqttRXSeconds > 0) {
+      uint8_t len = strlen(mqttRXMsg);
+      clearDisplay();
+      tm.displayText(mqttRXMsgP);
+      if (len > TM_DISPLAY_SIZE) {
+        if (++mqttRXMsgP > mqttRXMsg + len) {
+            mqttRXMsgP = mqttRXMsg;
+        };
+      }
+      return;
+    }
+
     if (clockDate > 0) {
       // display calendar
       clockDate--;
@@ -524,21 +560,15 @@ void calc() {
       return;      
   }
 
-// KEYPAD MAPPINGS:
-//  K03->7          K07->8           K11->9
-//  K02->4          K06->5           K10->6
-//  K01->1          K05->2           K09->3
-//  K00->0          K04->.           K08->del
+  // KEYPAD MAPPINGS:
+  //  K3->7          K7->8           K11->9
+  //  K2->4          K6->5           K10->6
+  //  K1->1          K5->2           K9->3
+  //  K0->0          K4->.           K8->del
   int8_t key = keypadBtnTouched();
   if (key >= 0) {
-    const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
     PR("KEY:", keymap[key]);
-    // MQTT publish
-    char bts[] = {keymap[key], 0};
-    doc["key"] = bts;
-    serializeJson(doc, mqttMsg);
-    mqttClient.publish(MQTT_TOPIC_KEYBOARD, mqttMsg);
-    //
+    keyPublish(key);
     if (userOPcompleted) {
       userOPcompleted = false;
       clearDisplay();
@@ -874,5 +904,8 @@ void loop() {
         }
         break;
     }
+  }
+  if (!calcTask.isEnabled()) {
+    keyPublish(keypadBtnTouched());
   }
 }
