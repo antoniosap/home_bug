@@ -81,6 +81,11 @@ uint8_t lastFunctionBtn = 0;
 
 const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9'};
 
+//--- BUZZER --------------------------------------------------------------------------------------------
+#define BUZZER_PIN    D0
+
+#include "EasyBuzzer.h"
+
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
 This is a library for the MPR121 12-channel Capacitive touch sensor
@@ -116,20 +121,6 @@ uint16_t currtouched = 0;
 
 //-------------------------------------------------------------------------------------------------------
 #include <ESP8266WiFi.h>          // https://github.com/esp8266/Arduino
-
-// //needed for library
-// #include <DNSServer.h>
-// #include <ESP8266WebServer.h>
-// #include "WiFiManager.h"          // https://github.com/tzapu/WiFiManager
-
-// void configModeCallback (WiFiManager *myWiFiManager) {
-//   Serial.println("Entered config mode");
-//   Serial.println(WiFi.softAPIP());
-//   //if you used auto generated SSID, print it
-//   Serial.println(myWiFiManager->getConfigPortalSSID());
-// }
-
-uint8_t wifiCounter = 10;
 
 //--- NTP CLIENT ----------------------------------------------------------------------------------------
 #include <credentials.h> 
@@ -243,6 +234,8 @@ void calcWelcomeOP();
 Task calcWelcomeOPTask(1000, TASK_FOREVER, &calcWelcomeOP);
 void mqttConnect();
 Task mqttTask(5000, TASK_FOREVER, &mqttConnect);
+void wifiConnect();
+Task wifiTask(5000, TASK_FOREVER, &wifiConnect);
 Scheduler runner;
 
 uint8_t welcomeState = 0;
@@ -275,6 +268,28 @@ void welcome() {
 
 bool userDigitPoint = false;
 bool userOPcompleted = false;
+
+void wifiConnect() {
+  if (WiFi.status() == WL_CONNECTED) {
+    if (timeStatus() != timeSet) {
+      Serial.print("I:WIFI:IP:");
+      Serial.println(WiFi.localIP());
+      // NTP begin
+      Serial.println("I:NTP:START");
+      myTZ.setLocation("Europe/Rome");
+      ezt::setDebug(INFO);
+      ezt::setServer(NTP_SERVER_LOCAL);
+      ezt::setInterval(INTERVAL_HOURS_S(6));
+      ezt::updateNTP();
+      ntpRefreshClock();
+      // NTP end  
+    }
+  } else {
+    Serial.println("I:WIFI:DISC");
+    Serial.println("I:WIFI:START");
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+  }
+}
 
 // cpp reference
 // https://en.cppreference.com/w/c/string/byte/strchr
@@ -381,6 +396,7 @@ int ss = 0;
 bool clockIndicator = false;
 bool clockDisplay = false;
 bool clockExtended = false;
+bool clockBing = false;
 uint8_t clockDate = 0;
 
 const char *monthc[] = { "GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC" };
@@ -427,6 +443,15 @@ void wallClock() {
                 hh, clockIndicator ? ":" : "-", mm);
     }
     tm.displayText(display);
+    if (hh >= 8 && hh <= 22 && clockBing) {
+      if (mm == 0 && ss == 0) {
+        Serial.println("2:");
+        EasyBuzzer.singleBeep(432, 500);
+      } else {
+        Serial.println("3:");
+        EasyBuzzer.singleBeep(432, 250);
+      }
+    }
   }
 
   clockIndicator = !clockIndicator;
@@ -445,6 +470,13 @@ void wallClock() {
     clockExtended = true;
   } else {
     clockExtended = false;
+  }
+  if ((mm == 59 && ss >= 56) ||
+      (mm == 0 && ss == 0)) {
+    clockBing = true;
+    Serial.println("1:");
+  } else {
+    clockBing = false;
   }
 };
 
@@ -802,22 +834,6 @@ void setup() {
   cap.setThresholds(70, 100);
   ESP.wdtEnable(1000);
 
-  Serial.print("I:WIFI");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (wifiCounter-- > 0 && WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println(WiFi.localIP());
-  // NTP begin
-  myTZ.setLocation("Europe/Rome");
-  ezt::setDebug(INFO);
-  ezt::setServer(NTP_SERVER_LOCAL);
-  ezt::setInterval(INTERVAL_HOURS_S(6));
-  ezt::waitForSync(20);
-  // ntpRefreshClock();
-  // NTP end
-
   // MQTT begin
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttCallback);
@@ -832,10 +848,12 @@ void setup() {
   runner.addTask(calcTask);
   runner.addTask(ntpRefreshTask);
   runner.addTask(mqttTask);
+  runner.addTask(wifiTask);
   ntpRefreshTask.enable();
   welcomeTask.enable();
   clockTask.enable();
   mqttTask.enable();
+  wifiTask.enable();
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -844,6 +862,7 @@ void loop() {
   runner.execute();
   ezt::events();
   mqttClient.loop();
+  EasyBuzzer.update();
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {

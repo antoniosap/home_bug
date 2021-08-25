@@ -83,3 +83,4 @@ impostare il time zone  + / - 1 ora
 impostare il wifi come un task
 qualche volta l ntp non aggiorna all'accensione
 OK impostare un MQTT che ritrasmette i buttons e riceve il display
+TODO in MQTT inserire l'IP in un campo, se il campo non esiste è in broadcast
