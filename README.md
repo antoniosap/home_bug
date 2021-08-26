@@ -53,7 +53,7 @@ S-KEY 2                 |
 S-KEY 3                 | ADD +
 S-KEY 4                 | SUB -
 S-KEY 5                 | MUL *
-S-KEY 6                 | DIV /
+S-KEY 6->TEST BUZ & LED | DIV /
 S-KEY 7->CLOCK DAY 3sec | ENTER =
 
 7 SEGMENT DISPLAY
@@ -80,7 +80,7 @@ impostare S3 = scroll page display
 inserire un cursore _ lampeggiante
 inserire CHS cambio segno
 impostare il time zone  + / - 1 ora
-impostare il wifi come un task
+OK impostare il wifi come un task
 qualche volta l ntp non aggiorna all'accensione
 OK impostare un MQTT che ritrasmette i buttons e riceve il display
 TODO in MQTT inserire l'IP in un campo, se il campo non esiste è in broadcast

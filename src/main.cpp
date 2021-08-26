@@ -86,6 +86,17 @@ const char keymap[] = {'0', '1', '4', '7', '.', '2', '5', '8', 'D', '3', '6', '9
 
 #include "EasyBuzzer.h"
 
+// bug in library code
+// https://github.com/evert-arias/EasyBuzzer/issues/1
+void buzzerFinish() {
+  pinMode(BUZZER_PIN, INPUT);
+}
+
+void buzzerFinishTest() {
+  buzzerFinish();
+  tm.setLEDs(0);
+}
+
 //--- capacitive keypad ---------------------------------------------------------------------------------
 /*********************************************************
 This is a library for the MPR121 12-channel Capacitive touch sensor
@@ -196,19 +207,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void mqttConnect() {
   if (!mqttClient.connected()) {
-    Serial.println("I:MQTT connection...");
+    Serial.println("I:MQTT:connection...");
     // Create a random client ID
     String clientId = "home-bug-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (mqttClient.connect(clientId.c_str())) {
-      Serial.println("I:MQTT connected");
+      Serial.println("I:MQTT:connected");
       // Once connected, publish an announcement...
       //mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
       mqttClient.subscribe(MQTT_TOPIC_DISPLAY);
     } else {
-      Serial.print("E:MQTT failed, rc=");
+      Serial.print("E:MQTT:failed, rc=");
       Serial.println(mqttClient.state());
     }
   }
@@ -397,6 +408,7 @@ bool clockIndicator = false;
 bool clockDisplay = false;
 bool clockExtended = false;
 bool clockBing = false;
+bool clockTest = false;
 uint8_t clockDate = 0;
 
 const char *monthc[] = { "GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC" };
@@ -445,13 +457,20 @@ void wallClock() {
     tm.displayText(display);
     if (hh >= 8 && hh <= 22 && clockBing) {
       if (mm == 0 && ss == 0) {
-        Serial.println("2:");
-        EasyBuzzer.singleBeep(432, 500);
+        Serial.println("B2:");
+        EasyBuzzer.singleBeep(432, 500, &buzzerFinish);
       } else {
-        Serial.println("3:");
-        EasyBuzzer.singleBeep(432, 250);
+        Serial.println("B3:");
+        EasyBuzzer.singleBeep(432, 250, &buzzerFinish);
       }
     }
+  }
+
+  if (clockTest) {
+    clockTest = false;
+    EasyBuzzer.singleBeep(432, 500, &buzzerFinishTest);
+    tm.displayText("8.8.8.8.8.8.8.8.");
+    tm.setLEDs(0xFFFF);
   }
 
   clockIndicator = !clockIndicator;
@@ -474,7 +493,7 @@ void wallClock() {
   if ((mm == 59 && ss >= 56) ||
       (mm == 0 && ss == 0)) {
     clockBing = true;
-    Serial.println("1:");
+    Serial.println("B1:");
   } else {
     clockBing = false;
   }
@@ -839,6 +858,9 @@ void setup() {
   mqttClient.setCallback(mqttCallback);
   // MQTT end
 
+  // BUZZER
+  EasyBuzzer.setPin(BUZZER_PIN);
+
   tm.displayBegin();
   displayResetZero();
   
@@ -912,6 +934,9 @@ void loop() {
         if (calcTask.isEnabled()) {
           op = '/';
           calcWelcomeOPEnable();
+        } else {
+          // test buzzer & leds
+          clockTest = true;
         }
         break;
       case 7:
