@@ -455,12 +455,10 @@ void wallClock() {
                 hh, clockIndicator ? ":" : "-", mm);
     }
     tm.displayText(display);
-    if (hh >= 8 && hh <= 22 && clockBing) {
+    if (clockBing) {
       if (mm == 0 && ss == 0) {
-        Serial.println("B2:");
-        EasyBuzzer.singleBeep(432, 500, &buzzerFinish);
+        EasyBuzzer.singleBeep(432, 800, &buzzerFinish);
       } else {
-        Serial.println("B3:");
         EasyBuzzer.singleBeep(432, 250, &buzzerFinish);
       }
     }
@@ -490,10 +488,9 @@ void wallClock() {
   } else {
     clockExtended = false;
   }
-  if ((mm == 59 && ss >= 56) ||
-      (mm == 0 && ss == 0)) {
+  if ((hh >= 7 && hh <= 21 && mm == 59 && ss >= 56) ||
+      (hh >= 8 && hh <= 22 && mm == 0 && ss == 0)) {
     clockBing = true;
-    Serial.println("B1:");
   } else {
     clockBing = false;
   }
