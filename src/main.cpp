@@ -48,7 +48,45 @@
 #define SINGLE_PRECISION_32        (9)
 #define SINGLE_PRECISION_32_FORMAT "%.9f"
 
-//--- TM 1638 leds & keys -------------------------------------------------------------------------------
+//--- CONSOLE MENU ---------------------------------------------------------------
+// https://github.com/neu-rah/ArduinoMenu/wiki/Menu-definition
+#include <menu.h>
+#include <menuIO/serialOut.h>
+#include <menuIO/chainStream.h>
+#include <menuIO/serialIn.h>
+
+using namespace Menu;
+
+#define MAX_DEPTH   1
+
+result menuShowIP();
+result menuListAP();
+result menuSetUser();
+result menuSetPass();
+result menuSave();
+result menuInfo();
+
+MENU(mainMenu,"home_bug config",doNothing,noEvent,wrapStyle
+  ,OP("show IP",menuShowIP,enterEvent)
+  ,OP("list AP",menuListAP,enterEvent)
+  ,OP("set user",menuSetUser,enterEvent)
+  ,OP("set password",menuSetPass,enterEvent)
+  ,OP("save",menuSave,enterEvent)
+  ,OP("nav info",menuInfo,enterEvent)
+  ,EXIT("<Back")
+);
+
+serialIn serial(Serial);
+MENU_INPUTS(in,&serial);
+
+MENU_OUTPUTS(out,MAX_DEPTH
+  ,SERIAL_OUT(Serial)
+  ,NONE//must have 2 items at least
+);
+
+NAVROOT(nav,mainMenu,MAX_DEPTH,in,out);
+
+//--- TM 1638 leds & keys --------------------------------------------------------
 /*
   Project Name: TM1638plus (arduino library)
   File: TM1638plus_HELLOWORLD_TEST_Model1.ino
@@ -274,6 +312,7 @@ void welcome() {
   if (welcomeTask.isLastIteration()) {
       welcomeTask.disable();
       wallClockEnable();
+      menuInfo();
   }
 };
 
@@ -833,6 +872,52 @@ int8_t keyBtnPressed() {
 
 //-------------------------------------------------------------------------------------------------------
 
+result menuShowIP() {
+  // gestire come se arrivasse la richesta da MQTT
+  Serial.println();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(WiFi.localIP());
+    mqttRXSeconds = 30;
+    strcpy(mqttRXMsg, WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("DISC");
+    mqttRXSeconds = 3;
+    strcpy(mqttRXMsg, "DISC");
+  }
+  mqttRXMsgP = mqttRXMsg;
+  return proceed;
+}
+
+result menuListAP() {
+  Serial.println("menuListAP");
+  return proceed;
+}
+
+result menuSetUser() {
+  Serial.println("menuSetUser");
+  return proceed;
+}
+
+result menuSetPass() {
+  Serial.println("menuSetPass");
+  return proceed;
+}
+
+result menuSave() {
+  Serial.println("menuSave");
+  return proceed;
+}
+
+result menuInfo() {
+  Serial.println("I:CONSOLE");
+  Serial.println("I:Use keys [+ up] [- down] [* enter] [/ esc]");
+  Serial.println("I:to control the menu navigation");
+  return proceed;
+}
+
+
+//-------------------------------------------------------------------------------------------------------
+
 void setup() {
   ESP.wdtDisable();
 
@@ -882,6 +967,11 @@ void loop() {
   ezt::events();
   mqttClient.loop();
   EasyBuzzer.update();
+
+  nav.doInput();
+  if (nav.changed(0)) {
+    nav.doOutput();
+  }
   
   int8_t btn = keyBtnPressed();
   if (btn >= 0) {
@@ -925,7 +1015,10 @@ void loop() {
         if (calcTask.isEnabled()) {
           op = '*';
           calcWelcomeOPEnable();
-        }
+        } else {
+          // show IP
+          menuShowIP();
+        } 
         break;
       case 6:
         if (calcTask.isEnabled()) {
