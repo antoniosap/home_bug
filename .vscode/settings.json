@@ -11,5 +11,6 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "istream": "cpp"
-    }
+    },
+    "cmake.configureOnOpen": false
 }
