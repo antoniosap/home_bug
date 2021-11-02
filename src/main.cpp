@@ -180,8 +180,11 @@ uint16_t currtouched = 0;
 #define NTP_OFFSET            (3600 * 2)
 #define NTP_REFRESH_HOURS     INTERVAL_HOURS_MS(2)
 #define NTP_SERVER_LOCAL      "europe.pool.ntp.org"
+#define NTP_SYNC_COUNTER      (100)
 
 Timezone myTZ;
+bool firstNTPSync = true;
+uint16_t NTPSyncCounter = 1;
 
 //--- MQTT CLIENT ---------------------------------------------------------------------------------------
 #include <PubSubClient.h>
@@ -322,22 +325,32 @@ bool userOPcompleted = false;
 void wifiConnect() {
   if (WiFi.status() == WL_CONNECTED) {
     if (timeStatus() != timeSet) {
-      Serial.print("I:WIFI:IP:");
+      Serial.print("I:WIFI:IP:");     // <--- correggere qui se internet non è raggiungibile
+                                      // inserire: - ntp mai ricevuto display = "-----"
+                                      // inserire: - ntp all'aggiornamento, se perso incrementa comunque il display,
+                                      // se l'ntp viene perso ritenta dopo 10 minuti
       Serial.println(WiFi.localIP());
       // NTP begin
-      Serial.println("I:NTP:START");
-      myTZ.setLocation("Europe/Rome");
-      ezt::setDebug(INFO);
-      ezt::setServer(NTP_SERVER_LOCAL);
-      ezt::setInterval(INTERVAL_HOURS_S(6));
-      ezt::updateNTP();
-      ntpRefreshClock();
+      firstNTPSync = lastNtpUpdateTime == 0;
+      if (firstNTPSync && --NTPSyncCounter == 0) {
+        NTPSyncCounter = NTP_SYNC_COUNTER;
+        Serial.println("I:NTP:START");
+        myTZ.setLocation("Europe/Rome");
+        ezt::setDebug(INFO);
+        ezt::setServer(NTP_SERVER_LOCAL);
+        ezt::setInterval(INTERVAL_HOURS_S(6));
+        ezt::updateNTP();
+        ntpRefreshClock();
+      } else {
+        Serial.println("I:NTP:WAIT");
+      }
       // NTP end  
     }
   } else {
     Serial.println("I:WIFI:DISC");
     Serial.println("I:WIFI:START");
     WiFi.begin(WIFI_SSID, WIFI_PASS);
+    NTPSyncCounter = NTP_SYNC_COUNTER;
   }
 }
 
@@ -493,7 +506,11 @@ void wallClock() {
       snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", \
                 hh, clockIndicator ? ":" : "-", mm);
     }
-    tm.displayText(display);
+    if (firstNTPSync) {
+      tm.displayText("--:--");
+    } else {
+      tm.displayText(display);
+    }
     if (clockBing) {
       if (mm == 0 && ss == 0) {
         EasyBuzzer.singleBeep(432, 800, &buzzerFinish);
