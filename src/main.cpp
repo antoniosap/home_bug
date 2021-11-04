@@ -180,11 +180,9 @@ uint16_t currtouched = 0;
 #define NTP_OFFSET            (3600 * 2)
 #define NTP_REFRESH_HOURS     INTERVAL_HOURS_MS(2)
 #define NTP_SERVER_LOCAL      "europe.pool.ntp.org"
-#define NTP_SYNC_COUNTER      (100)
 
 Timezone myTZ;
 bool firstNTPSync = true;
-uint16_t NTPSyncCounter = 1;
 
 //--- MQTT CLIENT ---------------------------------------------------------------------------------------
 #include <PubSubClient.h>
@@ -331,9 +329,9 @@ void wifiConnect() {
                                       // se l'ntp viene perso ritenta dopo 10 minuti
       Serial.println(WiFi.localIP());
       // NTP begin
-      firstNTPSync = lastNtpUpdateTime == 0;
-      if (firstNTPSync && --NTPSyncCounter == 0) {
-        NTPSyncCounter = NTP_SYNC_COUNTER;
+      //firstNTPSync = lastNtpUpdateTime() == 0;
+      //Serial.println(firstNTPSync);
+      //if (firstNTPSync && --NTPSyncCounter == 0) {
         Serial.println("I:NTP:START");
         myTZ.setLocation("Europe/Rome");
         ezt::setDebug(INFO);
@@ -341,9 +339,11 @@ void wifiConnect() {
         ezt::setInterval(INTERVAL_HOURS_S(6));
         ezt::updateNTP();
         ntpRefreshClock();
-      } else {
-        Serial.println("I:NTP:WAIT");
-      }
+      //} else {
+      //  Serial.print("I:NTP:WAIT:");
+      //  Serial.print(NTPSyncCounter);
+      //  Serial.println();
+      //}
       // NTP end  
     }
   } else {
@@ -506,11 +506,11 @@ void wallClock() {
       snprintf(display, TM_DISPLAY_SIZE + 1, "%2d%1s%02d   ", \
                 hh, clockIndicator ? ":" : "-", mm);
     }
-    if (firstNTPSync) {
-      tm.displayText("--:--");
-    } else {
+    //if (firstNTPSync) {
+    //  tm.displayText("--:--   ");
+    //} else {
       tm.displayText(display);
-    }
+    //}
     if (clockBing) {
       if (mm == 0 && ss == 0) {
         EasyBuzzer.singleBeep(432, 800, &buzzerFinish);

@@ -84,3 +84,11 @@ OK impostare il wifi come un task
 qualche volta l ntp non aggiorna all'accensione
 OK impostare un MQTT che ritrasmette i buttons e riceve il display
 TODO in MQTT inserire l'IP in un campo, se il campo non esiste è in broadcast
+
+FLASHING ESPTOOLS:
+usare un kernel 84/86
+https://github.com/espressif/esptool/issues/653
+
+
+NTP sembra che ezTime gestisca da se l'avanzamento del clock
+https://github.com/ropg/ezTime

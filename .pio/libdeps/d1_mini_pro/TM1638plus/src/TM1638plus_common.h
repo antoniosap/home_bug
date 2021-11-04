@@ -35,18 +35,6 @@
 #define TM_GREEN_LED 0x01 // Model 3
 #define TM_OFF_LED 0x00
 
-// 7 segment mapping
-//      0 LSB
-//----------------
-//|              |
-//| 5            | 1
-//|     6        |
-//----------------
-//|              |
-//| 4            | 2
-//|              |
-//----------------
-//      3          7 MSB
 // font , map of ASCII values/table to 7-segment, offset to position 32. 
 const  PROGMEM unsigned char SevenSeg[] = {
   0x00, /* (space) */
@@ -94,7 +82,7 @@ const  PROGMEM unsigned char SevenSeg[] = {
   0x1E, /* J */
   0x75, /* K */
   0x38, /* L */
-  0b00110111, // ex 0x15, /* M */
+  0x15, /* M */
   0x37, /* N */
   0x3F, /* O */
   0x73, /* P */
